@@ -4,7 +4,7 @@ roles:
 regions:
   deployment-account: {{ DeploymentAccountRegion }} # The region you define as your main deployment region
   targets: # A list of regions you wish to bootstrap and also deploy into via pipelines
-    {% for Region in TargetRegions -%}
+    {%- for Region in TargetRegions %}
     - {{ Region }}
     {%- endfor %}
 config:
