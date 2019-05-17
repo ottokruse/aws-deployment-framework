@@ -5,7 +5,12 @@ from pathlib import Path
 import os
 import boto3
 import jinja2
-from cfn_custom_resource import lambda_handler, create, update, delete # pylint: disable=unused-import
+from cfn_custom_resource import (
+    lambda_handler,
+    create,
+    update,
+    delete,
+)  # pylint: disable=unused-import
 
 
 PhysicalResourceId = str
@@ -20,9 +25,9 @@ class CustomResourceProperties:
     ServiceToken: str
     RepositoryArn: str
     DirectoryName: str
-    DeploymentAccountRegion: str
-    TargetRegions: List[str]
-    NotificationEmailAddress: str
+    DeploymentAccountRegion: Optional[str] = None
+    TargetRegions: Optional[List[str]] = None
+    NotificationEmailAddress: Optional[str] = None
 
     def __post_init__(self):
         self.TargetRegions = [
@@ -91,8 +96,10 @@ def create_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId
     create_event = CreateEvent(**event)
     repo_name = repo_arn_to_name(create_event.ResourceProperties.RepositoryArn)
     directory = create_event.ResourceProperties.DirectoryName
-    adf_config = create_adf_config_file(create_event.ResourceProperties)
-    files_to_commit = [adf_config, *get_files_to_commit(directory)]
+    files_to_commit = get_files_to_commit(directory)
+    if directory == "bootstrap_repository":
+        adf_config = create_adf_config_file(create_event.ResourceProperties)
+        files_to_commit.append(adf_config)
     print(f"Will commit these files: {[f.filePath for f in files_to_commit]}")
     commit_response = cc_client.create_commit(
         repositoryName=repo_name,
@@ -146,7 +153,13 @@ def get_relative_name(path: Path, directoryName: str) -> Path:
 
 def create_adf_config_file(props: CustomResourceProperties) -> FileToCommit:
     template = HERE / "adf-config.yml.j2"
-    adf_config = jinja2.Template(template.read_text()).render(vars(props)).encode()
+    adf_config = (
+        jinja2.Template(template.read_text(), undefined=jinja2.StrictUndefined)
+        .render(vars(props))
+        .encode()
+    )
+
+    jinja2.Environment()
 
     with open("/tmp/adf-config.yml", "wb") as f:
         f.write(adf_config)

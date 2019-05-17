@@ -873,6 +873,27 @@ Resources:
                 }
             }
       RoleArn: !GetAtt StatesExecutionRole.Arn
+  InitialCommit:
+    Type: Custom::InitialCommit
+    Properties:
+      ServiceToken: !GetAtt InitialCommitHandler.Arn
+      RepositoryArn: !GetAtt CodeCommitRepository.Arn
+      DirectoryName: pipelines_repository
+  InitialCommitHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: lambda_codebase/initial_commit
+      Description: "ADF Lambda Function - PipelinesCreateInitialCommitFunction"
+      Policies:
+        - Version: "2012-10-17"
+          Statement: 
+            - Effect: Allow
+              Action: codecommit:CreateCommit
+              Resource: !GetAtt CodeCommitRepository.Arn
+      FunctionName: PipelinesCreateInitialCommitFunction
+      Runtime: python3.7
+      Timeout: 300
 Outputs:
   SlackLambdaArn:
     Value: !GetAtt SendSlackNotification.Arn
