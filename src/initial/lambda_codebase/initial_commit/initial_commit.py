@@ -151,5 +151,3 @@ def create_adf_config_file(props: CustomResourceProperties) -> FileToCommit:
     with open("/tmp/adf-config.yml", "wb") as f:
         f.write(adf_config)
     return FileToCommit("adf-config.yml", FileMode.NORMAL, adf_config)
-
-    from cfn_custom_resource import lambda_handler, create, update, delete
