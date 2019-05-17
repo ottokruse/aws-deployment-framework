@@ -883,7 +883,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: handler.lambda_handler
-      CodeUri: ../..
+      CodeUri: ../../..
       Description: "ADF Lambda Function - PipelinesCreateInitialCommitFunction"
       Policies:
         - Version: "2012-10-17"
