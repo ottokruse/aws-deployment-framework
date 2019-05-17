@@ -13,6 +13,7 @@ template-deploy.yml
 master-deploy.yml
 .pytest_cache
 shared_layer.zip
+.aws-sam
 
 # Byte-compiled / optimized / DLL files
 __pycache__

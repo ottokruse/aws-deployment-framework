@@ -62,7 +62,7 @@ Resources:
   LambdaLayerVersion:
     Type: "AWS::Serverless::LayerVersion"
     Properties:
-      ContentUri: "../bootstrap_repository/adf-build/shared/"
+      ContentUri: "./lambda_codebase/initial_commit/bootstrap_repository/adf-build/shared/"
       CompatibleRuntimes: 
         - python3.6
         - python3.7
@@ -592,6 +592,30 @@ Resources:
                 }
             }
       RoleArn: !GetAtt StatesExecutionRole.Arn
+  InitialCommit:
+    Type: Custom::InitialCommit
+    Properties:
+      ServiceToken: !GetAtt InitialCommitHandler.Arn
+      RepositoryArn: !GetAtt CodeCommitRepository.Arn
+      DirectoryName: bootstrap_repository
+      DeploymentAccountRegion: eu-west-1
+      TargetRegions: eu-west-1,eu-central-1
+      NotificationEmailAddress: ottokruse@gmail.com
+  InitialCommitHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: lambda_codebase/initial_commit
+      Description: "ADF Lambda Function - BootstrapCreateInitialCommitFunction"
+      Policies:
+        - Version: "2012-10-17"
+          Statement: 
+            - Effect: Allow
+              Action: codecommit:CreateCommit
+              Resource: !GetAtt CodeCommitRepository.Arn
+      FunctionName: BootstrapCreateInitialCommitFunction
+      Runtime: python3.7
+      Timeout: 300
 Outputs:
   LayerArn:
     Description: "The Shared modules Lambda Layer Arn"
