@@ -5,12 +5,12 @@ from pathlib import Path
 import os
 import boto3
 import jinja2
-from cfn_custom_resource import (
+from cfn_custom_resource import (  # pylint: disable=unused-import
     lambda_handler,
     create,
     update,
     delete,
-)  # pylint: disable=unused-import
+)
 
 
 PhysicalResourceId = str
@@ -18,6 +18,7 @@ Data = Mapping[str, str]
 
 HERE = Path(__file__).parent
 NOT_YET_CREATED = "NOT_YET_CREATED"
+CC_CLIENT = boto3.client("codecommit")
 
 
 @dataclass
@@ -88,9 +89,6 @@ class UpdateEvent(Event):
         )
 
 
-cc_client = boto3.client("codecommit")
-
-
 @create()
 def create_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId, Data]:
     create_event = CreateEvent(**event)
@@ -101,7 +99,7 @@ def create_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId
         adf_config = create_adf_config_file(create_event.ResourceProperties)
         files_to_commit.append(adf_config)
     print(f"Will commit these files: {[f.filePath for f in files_to_commit]}")
-    commit_response = cc_client.create_commit(
+    commit_response = CC_CLIENT.create_commit(
         repositoryName=repo_name,
         branchName="master",
         authorName="AWS ADF Builders Team",
