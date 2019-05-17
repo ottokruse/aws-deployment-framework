@@ -157,8 +157,6 @@ def create_adf_config_file(props: CustomResourceProperties) -> FileToCommit:
         .encode()
     )
 
-    jinja2.Environment()
-
     with open("/tmp/adf-config.yml", "wb") as f:
         f.write(adf_config)
     return FileToCommit("adf-config.yml", FileMode.NORMAL, adf_config)
