@@ -150,13 +150,13 @@ def get_relative_name(path: Path, directoryName: str) -> Path:
 
 
 def create_adf_config_file(props: CustomResourceProperties) -> FileToCommit:
-    template = HERE / "adf-config.yml.j2"
+    template = HERE / "adfconfig.yml.j2"
     adf_config = (
         jinja2.Template(template.read_text(), undefined=jinja2.StrictUndefined)
         .render(vars(props))
         .encode()
     )
 
-    with open("/tmp/adf-config.yml", "wb") as f:
+    with open("/tmp/adfconfig.yml", "wb") as f:
         f.write(adf_config)
-    return FileToCommit("adf-config.yml", FileMode.NORMAL, adf_config)
+    return FileToCommit("adfconfig.yml", FileMode.NORMAL, adf_config)
