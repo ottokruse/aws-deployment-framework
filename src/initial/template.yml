@@ -3,19 +3,51 @@
 
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: 'AWS::Serverless-2016-10-31'
-Description:  ADF CloudFormation Template (Initial) for Master Account in us-east-1
+Description:  ADF CloudFormation Initial Base Stack for Master Account in US-EAST-1
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: aws-deployment-framework
+    Description: The AWS Deployment Framework (ADF) is an extensive and flexible framework to manage and deploy resources across multiple AWS accounts and regions based on AWS Organizations.
+    Author: AWS ADF Builders Team
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: ../../LICENSE.txt
+    ReadmeUrl: ../../README.md
+    Labels: ['adf', 'aws-deployment-framework']
+    HomePageUrl: https://github.com/awslabs/aws-deployment-framework
+    SemanticVersion: 1.0.0
+    SourceCodeUrl: https://github.com/awslabs/aws-deployment-framework
 Parameters:
+  CrossAccountAccessRoleName:
+    Description: "The Name of the Role that ADF will use to access other AWS Accounts within your Organization and create base stacks."
+    Type: String
+    Default: OrganizationAccountAccessRole
+  MainNotificationEndpoint:
+    Description: "The Email Address (Or Slack Channel) that will receive notifications in regards to the bootstrapping pipeline on the master account."
+    Type: String
+  DeploymentAccountName:
+    Description: "The Name of the centralized Deployment Account - Will be created if does not exist"
+    Type: String
+    Default: deployment
+  DeploymentAccountEmailAddress:
+    Description: "The Email address associated with the Deployment Account, only required if Deployment Account requires creation."
+    Type: String
+  DeploymentAccountMainRegion:
+    Description: "The region that will centrally hold all CodePipeline deployments. This would be considered your default ADF AWS Region"
+    Type: String
+  DeploymentAccountTargetRegions:
+    Description: "A List of regions that you may want to deploy resources (Applications, CloudFormation etc) into via CodePipeline (This can always be updated later)"
+    Type: CommaDelimitedList
   TerminationProtection:
     Type: String
     Description: "Termination Protection can be passed in to enable Protection for all ADF deployed stacks"
     AllowedValues: [true, false]
     Default: false
   Image:
-    Description: The Image you wish to use for CodeBuild.
+    Description: The Image you wish to use for CodeBuild for the bootstrap pipeline.
     Type: String
-    Default: "aws/codebuild/python:3.7.1"
+    Default: "aws/codebuild/standard:2.0"
   ComputeType:
-    Description: The Compute Type to use for AWS CodeBuild
+    Description: The Compute Type to use for AWS CodeBuild for the bootstrap pipeline.
     Type: String
     Default: "BUILD_GENERAL1_SMALL"
     AllowedValues:
@@ -23,10 +55,10 @@ Parameters:
       - "BUILD_GENERAL1_MEDIUM" #7 GB memory, 4 vCPU
       - "BUILD_GENERAL1_LARGE"  #15 GB memory, 8 vCPU
   DeploymentAccountBucket:
-    Description: The S3 Bucket in the region that the deployment account will be hosted in
+    Description: The S3 Bucket in the region that the deployment account will be hosted in - Will be created if not defined
     Type: String
   OrganizationId:
-    Description: The ID Of Your AWS Organization which will be used as conditional boundry for access
+    Description: The ID Of Your AWS Organization which will be used as conditional boundary for access - Will be created if not defined
     Type: String
 Resources:
   BootstrapTemplatesBucketPolicy:
@@ -362,6 +394,7 @@ Resources:
         Type: CODEPIPELINE
       Environment:
         ComputeType: !Ref ComputeType
+        PrivilegedMode: true
         Image: !Ref Image
         EnvironmentVariables:
           - Name: PYTHONPATH
@@ -382,17 +415,19 @@ Resources:
           version: 0.2
           phases:
             install:
+              runtime-versions:
+                python: 3.7
+                docker: 18
+            pre_build:
               commands:
-                # You can add in cfn-lint here also if required for base-templates
                 - apt-get update -qq
                 - pip install --upgrade pip
                 - pip install -r adf-build/requirements.txt --upgrade --quiet
-            pre_build:
-              commands:
                 - pytest -vvv
             build:
               commands:
-                - aws cloudformation package --template-file $(pwd)/deployment/global.yml --output-template-file deployment/global.yml --s3-prefix deployment --s3-bucket $DEPLOYMENT_ACCOUNT_BUCKET
+                - sam build -t deployment/global.yml
+                - sam package --output-template-file deployment/global.yml --s3-prefix deployment --s3-bucket $DEPLOYMENT_ACCOUNT_BUCKET
                 - aws s3 sync ./adf-build/shared s3://$DEPLOYMENT_ACCOUNT_BUCKET/adf-build/shared --quiet # Shared Modules to be used with AWS CodeBuild
                 - aws s3 sync . s3://$S3_BUCKET --quiet --delete # Base Templates
                 - python adf-build/main.py  # Updates config, updates (or creates) base stacks.
@@ -598,9 +633,9 @@ Resources:
       ServiceToken: !GetAtt InitialCommitHandler.Arn
       RepositoryArn: !GetAtt CodeCommitRepository.Arn
       DirectoryName: bootstrap_repository
-      DeploymentAccountRegion: eu-west-1
-      TargetRegions: eu-west-1,eu-central-1
-      NotificationEmailAddress: ottokruse@gmail.com
+      DeploymentAccountRegion: !Ref DeploymentAccountMainRegion
+      TargetRegions: !Ref DeploymentAccountTargetRegions
+      NotificationEmailAddress: !Ref DeploymentAccountEmailAddress
   InitialCommitHandler:
     Type: AWS::Serverless::Function
     Properties:
