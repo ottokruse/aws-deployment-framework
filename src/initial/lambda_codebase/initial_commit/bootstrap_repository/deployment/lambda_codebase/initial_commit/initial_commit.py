@@ -30,11 +30,6 @@ class CustomResourceProperties:
     TargetRegions: Optional[List[str]] = None
     NotificationEmailAddress: Optional[str] = None
 
-    def __post_init__(self):
-        self.TargetRegions = [
-            region.strip() for region in self.TargetRegions
-        ]
-
 
 @dataclass
 class Event:

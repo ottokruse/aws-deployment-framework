@@ -224,6 +224,7 @@ Resources:
             Ref: OrganizationId
         Image:
           Ref: Image
+        PrivilegedMode: true
         Type: LINUX_CONTAINER
       Name: aws-deployment-framework-base-templates
       ServiceRole:
@@ -232,16 +233,16 @@ Resources:
         BuildSpec:
           Fn::Sub: "version: 0.2\nphases:\n  install:\n    runtime-versions:\n   \
             \   python: 3.7\n      docker: 18\n  pre_build:\n    commands:\n     \
-            \ - apt-get update -qq\n      - bash deployment/lambda_codebase/dockerd-entrypoint.sh\n\
-            \      - pip install --upgrade pip\n      - pip install -r adf-build/requirements.txt\
-            \ --upgrade --quiet\n      - pytest -vvv\n  build:\n    commands:\n  \
-            \    - sam build -t deployment/global.yml --use-container\n      - sam\
-            \ package --output-template-file deployment/global.yml --s3-prefix deployment\
-            \ --s3-bucket $DEPLOYMENT_ACCOUNT_BUCKET\n      - aws s3 sync ./adf-build/shared\
-            \ s3://$DEPLOYMENT_ACCOUNT_BUCKET/adf-build/shared --quiet # Shared Modules\
-            \ to be used with AWS CodeBuild\n      - aws s3 sync . s3://$S3_BUCKET\
-            \ --quiet --delete # Base Templates\n      - python adf-build/main.py\
-            \  # Updates config, updates (or creates) base stacks.\n"
+            \ - apt-get update -qq\n      - pip install --upgrade pip\n      - pip\
+            \ install -r adf-build/requirements.txt --upgrade --quiet\n      - pytest\
+            \ -vvv\n  build:\n    commands:\n      - sam build -t deployment/global.yml\n\
+            \      - sam package --output-template-file deployment/global.yml --s3-prefix\
+            \ deployment --s3-bucket $DEPLOYMENT_ACCOUNT_BUCKET\n      - aws s3 sync\
+            \ ./adf-build/shared s3://$DEPLOYMENT_ACCOUNT_BUCKET/adf-build/shared\
+            \ --quiet # Shared Modules to be used with AWS CodeBuild\n      - aws\
+            \ s3 sync . s3://$S3_BUCKET --quiet --delete # Base Templates\n      -\
+            \ python adf-build/main.py  # Updates config, updates (or creates) base\
+            \ stacks.\n"
         Type: CODEPIPELINE
       Tags:
       - Key: Name
@@ -378,7 +379,7 @@ Resources:
     Type: AWS::IAM::ManagedPolicy
   CrossAccountExecuteFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/8037d2acf462135ba0701960682fc96f
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/5965ac835e5fc4fda52ab0797d59480c
       Description: ADF Lambda Function - CrossAccountExecuteFunction
       Environment:
         Variables:
@@ -405,7 +406,7 @@ Resources:
     Type: AWS::Serverless::Function
   DetermineEventFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/8037d2acf462135ba0701960682fc96f
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/5965ac835e5fc4fda52ab0797d59480c
       Description: ADF Lambda Function - DetermineEvent
       Environment:
         Variables:
@@ -450,7 +451,7 @@ Resources:
     Type: Custom::InitialCommit
   InitialCommitHandler:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/5f68edc60ca88366b175bc0a1409534c
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/cc8a4874d2d31dcb6a94cb6cddc24682
       Description: ADF Lambda Function - BootstrapCreateInitialCommitFunction
       FunctionName: BootstrapCreateInitialCommitFunction
       Handler: handler.lambda_handler
@@ -542,7 +543,7 @@ Resources:
     Type: AWS::IAM::Role
   MovedToRootActionFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/8037d2acf462135ba0701960682fc96f
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/5965ac835e5fc4fda52ab0797d59480c
       Description: ADF Lambda Function - MovedToRootActionFunction
       Environment:
         Variables:
@@ -565,7 +566,7 @@ Resources:
     Type: AWS::Serverless::Function
   RoleStackDeploymentFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/8037d2acf462135ba0701960682fc96f
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/5965ac835e5fc4fda52ab0797d59480c
       Description: ADF Lambda Function - RoleStackDeploymentFunction
       Environment:
         Variables:
@@ -588,7 +589,7 @@ Resources:
     Type: AWS::Serverless::Function
   StackWaiterFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/8037d2acf462135ba0701960682fc96f
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/5965ac835e5fc4fda52ab0797d59480c
       Description: ADF Lambda Function - StackWaiterFunction
       Environment:
         Variables:
@@ -693,7 +694,7 @@ Resources:
     Type: AWS::IAM::Role
   UpdateResourcePoliciesFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/8037d2acf462135ba0701960682fc96f
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/5965ac835e5fc4fda52ab0797d59480c
       Description: ADF Lambda Function - UpdateResourcePoliciesFunction
       Environment:
         Variables:

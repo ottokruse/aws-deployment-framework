@@ -3,7 +3,7 @@
 
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: 'AWS::Serverless-2016-10-31'
-Description:  ADF CloudFormation Initial Base Stack for Master Account in US-EAST-1
+Description: ADF CloudFormation Initial Base Stack for the Master Account in the us-east-1 region.
 Metadata:
   AWS::ServerlessRepo::Application:
     Name: aws-deployment-framework
