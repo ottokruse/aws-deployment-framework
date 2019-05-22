@@ -1,17 +1,17 @@
 try:
     from initial_commit import lambda_handler # pylint: disable=unused-import
-except Exception as err:  # pylint: disable=broad-except
+except Exception as e:  # pylint: disable=broad-except
     from urllib.request import Request, urlopen
     import json
 
-    def lambda_handler(event, _context, prior_error=err):
+    def lambda_handler(event, _context, e=e):
         response = dict(
             LogicalResourceId=event["LogicalResourceId"],
             PhysicalResourceId=event.get("PhysicalResourceId", "NOT_YET_CREATED"),
             Status="FAILED",
             RequestId=event["RequestId"],
             StackId=event["StackId"],
-            Reason=str(prior_error),
+            Reason=str(e),
         )
         urlopen(
             Request(

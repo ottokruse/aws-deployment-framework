@@ -29,16 +29,12 @@ class CustomResourceProperties:
     DeploymentAccountRegion: Optional[str] = None
     TargetRegions: Optional[List[str]] = None
     NotificationEndpoint: Optional[str] = None
-    NotificationEndpointType: Optional[str] = None
 
-    def __post_init__(self):
-        if self.NotificationEndpoint:
-            self.NotificationEndpointType = (
-                "email"
-                if "@"
-                in self.NotificationEndpoint  # pylint:disable=unsupported-membership-test
-                else "slack"
-            )
+    # def __post_init__(self):
+    #     if self.TargetRegions and isinstance(self.TargetRegions, str):
+    #         self.TargetRegions = [
+    #             region.strip() for region in self.TargetRegions.split(",")
+    #         ]
 
 
 @dataclass

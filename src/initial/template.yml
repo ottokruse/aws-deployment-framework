@@ -3,31 +3,64 @@
 
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: 'AWS::Serverless-2016-10-31'
-Description:  ADF CloudFormation Template (Initial) for Master Account in us-east-1
+Description:  ADF CloudFormation Initial Base Stack for Master Account in US-EAST-1
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: aws-deployment-framework
+    Description: The AWS Deployment Framework (ADF) is an extensive and flexible framework to manage and deploy resources across multiple AWS accounts and regions based on AWS Organizations.
+    Author: AWS ADF Builders Team
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: ../../LICENSE.txt
+    ReadmeUrl: ../../README.md
+    Labels: ['adf', 'aws-deployment-framework']
+    HomePageUrl: https://github.com/awslabs/aws-deployment-framework
+    SemanticVersion: 1.0.0
+    SourceCodeUrl: https://github.com/awslabs/aws-deployment-framework
 Parameters:
+  CrossAccountAccessRoleName:
+    Description: "The Name of the Role that ADF will use to access other AWS Accounts within your Organization and create base stacks."
+    Type: String
+    Default: OrganizationAccountAccessRole
+  MainNotificationEndpoint:
+    Description: "The Email Address (Or Slack Channel) that will receive notifications in regards to the bootstrapping pipeline on the master account."
+    Type: String
+  DeploymentAccountName:
+    Description: "The Name of the centralized Deployment Account - Will be created if does not exist"
+    Type: String
+    Default: deployment
+  DeploymentAccountEmailAddress:
+    Description: "The Email address associated with the Deployment Account, only required if Deployment Account requires creation."
+    Type: String
+    Default: ""
+  DeploymentAccountMainRegion:
+    Description: "The region that will centrally hold all CodePipeline deployments. This would be considered your default ADF AWS Region"
+    Type: String
+  DeploymentAccountTargetRegions:
+    Description: "A List of regions that you may want to deploy resources (Applications, CloudFormation etc) into via CodePipeline (This can always be updated later)"
+    Type: CommaDelimitedList
   TerminationProtection:
     Type: String
     Description: "Termination Protection can be passed in to enable Protection for all ADF deployed stacks"
     AllowedValues: [true, false]
     Default: false
   Image:
-    Description: The Image you wish to use for CodeBuild.
+    Description: The Image you wish to use for CodeBuild for the bootstrap pipeline.
     Type: String
-    Default: "aws/codebuild/python:3.7.1"
+    Default: "aws/codebuild/standard:2.0"
   ComputeType:
-    Description: The Compute Type to use for AWS CodeBuild
+    Description: The Compute Type to use for AWS CodeBuild for the bootstrap pipeline.
     Type: String
     Default: "BUILD_GENERAL1_SMALL"
     AllowedValues:
       - "BUILD_GENERAL1_SMALL"  #3 GB memory, 2 vCPU
       - "BUILD_GENERAL1_MEDIUM" #7 GB memory, 4 vCPU
       - "BUILD_GENERAL1_LARGE"  #15 GB memory, 8 vCPU
-  DeploymentAccountBucket:
-    Description: The S3 Bucket in the region that the deployment account will be hosted in
-    Type: String
-  OrganizationId:
-    Description: The ID Of Your AWS Organization which will be used as conditional boundry for access
-    Type: String
+Conditions:
+  ShouldCreateDeploymentAccount:
+    Fn::Not:
+      - Fn::Equals:
+        - ""
+        - !Ref DeploymentAccountEmailAddress
 Resources:
   BootstrapTemplatesBucketPolicy:
     Type: AWS::S3::BucketPolicy
@@ -43,7 +76,7 @@ Resources:
             Effect: Allow
             Condition:
               StringEquals:
-                aws:PrincipalOrgID: !Ref OrganizationId
+                aws:PrincipalOrgID: !Ref !GetAtt DeploymentOrganizationUnit.OrganizationId
             Resource:
               - !Sub arn:aws:s3:::${BootstrapTemplatesBucket}
               - !Sub arn:aws:s3:::${BootstrapTemplatesBucket}/*
@@ -73,7 +106,7 @@ Resources:
     Properties:
       Action: lambda:GetLayerVersion
       LayerVersionArn: !Ref LambdaLayerVersion
-      OrganizationId: !Ref OrganizationId
+      !GetAtt DeploymentOrganizationUnit.OrganizationId: !Ref !GetAtt DeploymentOrganizationUnit.OrganizationId
       Principal: "*"
   LambdaRole:
     Type: "AWS::IAM::Role"
@@ -139,7 +172,7 @@ Resources:
           S3_BUCKET_NAME: !Ref BootstrapTemplatesBucket
           TERMINATION_PROTECTION: !Ref TerminationProtection
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ORGANIZATION_ID: !Ref OrganizationId
+          ORGANIZATION_ID: !Ref !GetAtt DeploymentOrganizationUnit.OrganizationId
       FunctionName: StackWaiter
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.6
@@ -156,9 +189,9 @@ Resources:
         Variables:
           S3_BUCKET_NAME: !Ref BootstrapTemplatesBucket
           TERMINATION_PROTECTION: !Ref TerminationProtection
-          DEPLOYMENT_ACCOUNT_BUCKET: !Ref DeploymentAccountBucket
+          DEPLOYMENT_ACCOUNT_BUCKET: !GetAtt DeploymentAccountBucket.BucketName
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ORGANIZATION_ID: !Ref OrganizationId
+          ORGANIZATION_ID: !Ref !GetAtt DeploymentOrganizationUnit.OrganizationId
       FunctionName: DetermineEventFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.6
@@ -175,9 +208,9 @@ Resources:
         Variables:
           S3_BUCKET_NAME: !Ref BootstrapTemplatesBucket
           TERMINATION_PROTECTION: !Ref TerminationProtection
-          DEPLOYMENT_ACCOUNT_BUCKET: !Ref DeploymentAccountBucket
+          DEPLOYMENT_ACCOUNT_BUCKET: !GetAtt DeploymentAccountBucket.BucketName
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ORGANIZATION_ID: !Ref OrganizationId
+          ORGANIZATION_ID: !Ref !GetAtt DeploymentOrganizationUnit.OrganizationId
       FunctionName: CrossAccountExecuteFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.6
@@ -362,6 +395,7 @@ Resources:
         Type: CODEPIPELINE
       Environment:
         ComputeType: !Ref ComputeType
+        PrivilegedMode: true
         Image: !Ref Image
         EnvironmentVariables:
           - Name: PYTHONPATH
@@ -371,9 +405,9 @@ Resources:
           - Name: MASTER_ACCOUNT_ID
             Value: !Ref AWS::AccountId
           - Name: DEPLOYMENT_ACCOUNT_BUCKET
-            Value: !Ref DeploymentAccountBucket
+            Value: !GetAtt DeploymentAccountBucket.BucketName
           - Name: ORGANIZATION_ID
-            Value: !Ref OrganizationId
+            Value: !Ref !GetAtt DeploymentOrganizationUnit.OrganizationId
         Type: LINUX_CONTAINER
       Name: 'aws-deployment-framework-base-templates'
       ServiceRole: !Ref CodeBuildRole
@@ -382,17 +416,19 @@ Resources:
           version: 0.2
           phases:
             install:
+              runtime-versions:
+                python: 3.7
+                docker: 18
+            pre_build:
               commands:
-                # You can add in cfn-lint here also if required for base-templates
                 - apt-get update -qq
                 - pip install --upgrade pip
                 - pip install -r adf-build/requirements.txt --upgrade --quiet
-            pre_build:
-              commands:
                 - pytest -vvv
             build:
               commands:
-                - aws cloudformation package --template-file $(pwd)/deployment/global.yml --output-template-file deployment/global.yml --s3-prefix deployment --s3-bucket $DEPLOYMENT_ACCOUNT_BUCKET
+                - sam build -t deployment/global.yml
+                - sam package --output-template-file deployment/global.yml --s3-prefix deployment --s3-bucket $DEPLOYMENT_ACCOUNT_BUCKET
                 - aws s3 sync ./adf-build/shared s3://$DEPLOYMENT_ACCOUNT_BUCKET/adf-build/shared --quiet # Shared Modules to be used with AWS CodeBuild
                 - aws s3 sync . s3://$S3_BUCKET --quiet --delete # Base Templates
                 - python adf-build/main.py  # Updates config, updates (or creates) base stacks.
@@ -598,9 +634,9 @@ Resources:
       ServiceToken: !GetAtt InitialCommitHandler.Arn
       RepositoryArn: !GetAtt CodeCommitRepository.Arn
       DirectoryName: bootstrap_repository
-      DeploymentAccountRegion: eu-west-1
-      TargetRegions: eu-west-1,eu-central-1
-      NotificationEmailAddress: ottokruse@gmail.com
+      DeploymentAccountRegion: !Ref DeploymentAccountMainRegion
+      TargetRegions: !Ref DeploymentAccountTargetRegions
+      NotificationEndpoint: !Ref MainNotificationEndpoint
   InitialCommitHandler:
     Type: AWS::Serverless::Function
     Properties:
@@ -614,6 +650,106 @@ Resources:
               Action: codecommit:CreateCommit
               Resource: !GetAtt CodeCommitRepository.Arn
       FunctionName: BootstrapCreateInitialCommitFunction
+      Runtime: python3.7
+      Timeout: 300
+  DeploymentAccountBucket:
+    Type: Custom::CrossRegionBucket
+    Properties:
+      ServiceToken: !GetAtt CrossRegionBucketHandler.Arn
+      Region: !Ref DeploymentAccountMainRegion
+      BucketNamePrefix: !Sub "adf-shared-modules-${DeploymentAccountMainRegion}"
+  CrossRegionBucketHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: cross_region_bucket
+      Description: "ADF Lambda Function - Create Deployment Bucket in Main Deployment Region"
+      Policies:
+        - Version: "2012-10-17"
+          Statement: 
+            - Effect: Allow
+              Action: s3:CreateBucket
+              Resource: "*"
+            - Effect: Allow
+              Action: s3:DeleteBucket
+              Resource: "arn:aws:s3:::adf-shared-modules-*"
+      FunctionName: CrossRegionBucketHandler
+      Runtime: python3.7
+      Timeout: 300
+  Organization:
+    Type: Custom::Organization
+    Properties:
+      ServiceToken: !GetAtt OrganizationHandler.Arn
+  OrganizationHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: organization
+      Description: "ADF Lambda Function - Enable AWS Organizations"
+      Policies:
+        - Version: "2012-10-17"
+          Statement: 
+            - Effect: Allow
+              Action:
+                - "organizations:CreateOrganization"
+                - "organizations:DescribeOrganization"
+                - "organizations:DeleteOrganization"
+                - "organizations:ListRoots"
+              Resource: "*"
+            - Effect: Allow
+              Action: "iam:CreateServiceLinkedRole"
+              Resource: "arn:aws:iam::*:role/aws-service-role/*"
+      FunctionName: AwsOrganizationsHandler
+      Runtime: python3.7
+      Timeout: 300
+  DeploymentOrganizationUnit:
+    Type: Custom::OrganizationUnit
+    Properties:
+      ServiceToken: !GetAtt OrganizationUnitHandler.Arn
+      ParentId: !GetAtt Organization.OrganizationRootId
+      OrganizationUnitName: deployment
+  OrganizationUnitHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: organization_unit
+      Description: "ADF Lambda Function - Create Organization Unit"
+      Policies:
+        - Version: "2012-10-17"
+          Statement: 
+            - Effect: Allow
+              Action:
+                - "organizations:CreateOrganizationalUnit"
+                - "organizations:DeleteOrganizationalUnit"
+                - "organizations:ListOrganizationalUnitsForParent"
+              Resource: "*"
+      FunctionName: OrganizationUnitHandler
+      Runtime: python3.7
+      Timeout: 300
+  DeploymentAccount:
+    Type: Custom::Account
+    Condition: ShouldCreateDeploymentAccount
+    Properties:
+      ServiceToken: !GetAtt AccountHandler.Arn
+      AccountName: !Ref DeploymentAccountName
+      AccountEmailAddress: !Ref DeploymentAccountEmailAddress
+      CrossAccountAccessRoleName: !Ref CrossAccountAccessRoleName
+  AccountHandler:
+    Type: AWS::Serverless::Function
+    Condition: ShouldCreateDeploymentAccount
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: account
+      Description: "ADF Lambda Function - Create Account"
+      Policies:
+        - Version: "2012-10-17"
+          Statement: 
+            - Effect: Allow
+              Action:
+                - "organizations:CreateAccount"
+                - "organizations:DescribeCreateAccountStatus"
+              Resource: "*"
+      FunctionName: AccountHandler
       Runtime: python3.7
       Timeout: 300
 Outputs:
