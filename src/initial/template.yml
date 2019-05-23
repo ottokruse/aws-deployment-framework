@@ -82,7 +82,7 @@ Resources:
             Effect: Allow
             Condition:
               StringEquals:
-                aws:PrincipalOrgID: !Ref !GetAtt DeploymentOrganizationUnit.OrganizationId
+                aws:PrincipalOrgID: !GetAtt DeploymentOrganizationUnit.OrganizationId
             Resource:
               - !Sub arn:aws:s3:::${BootstrapTemplatesBucket}
               - !Sub arn:aws:s3:::${BootstrapTemplatesBucket}/*
@@ -112,7 +112,7 @@ Resources:
     Properties:
       Action: lambda:GetLayerVersion
       LayerVersionArn: !Ref LambdaLayerVersion
-      !GetAtt DeploymentOrganizationUnit.OrganizationId: !Ref !GetAtt DeploymentOrganizationUnit.OrganizationId
+      DeploymentOrganizationUnit.OrganizationId: !GetAtt DeploymentOrganizationUnit.OrganizationId
       Principal: "*"
   LambdaRole:
     Type: "AWS::IAM::Role"
@@ -178,7 +178,7 @@ Resources:
           S3_BUCKET_NAME: !Ref BootstrapTemplatesBucket
           TERMINATION_PROTECTION: !Ref TerminationProtection
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ORGANIZATION_ID: !Ref !GetAtt DeploymentOrganizationUnit.OrganizationId
+          ORGANIZATION_ID: !GetAtt DeploymentOrganizationUnit.OrganizationId
       FunctionName: StackWaiter
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.6
@@ -197,7 +197,7 @@ Resources:
           TERMINATION_PROTECTION: !Ref TerminationProtection
           DEPLOYMENT_ACCOUNT_BUCKET: !GetAtt DeploymentAccountBucket.BucketName
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ORGANIZATION_ID: !Ref !GetAtt DeploymentOrganizationUnit.OrganizationId
+          ORGANIZATION_ID: !GetAtt DeploymentOrganizationUnit.OrganizationId
       FunctionName: DetermineEventFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.6
@@ -216,7 +216,7 @@ Resources:
           TERMINATION_PROTECTION: !Ref TerminationProtection
           DEPLOYMENT_ACCOUNT_BUCKET: !GetAtt DeploymentAccountBucket.BucketName
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ORGANIZATION_ID: !Ref !GetAtt DeploymentOrganizationUnit.OrganizationId
+          ORGANIZATION_ID: !GetAtt DeploymentOrganizationUnit.OrganizationId
       FunctionName: CrossAccountExecuteFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.6
@@ -413,7 +413,7 @@ Resources:
           - Name: DEPLOYMENT_ACCOUNT_BUCKET
             Value: !GetAtt DeploymentAccountBucket.BucketName
           - Name: ORGANIZATION_ID
-            Value: !Ref !GetAtt DeploymentOrganizationUnit.OrganizationId
+            Value: !GetAtt DeploymentOrganizationUnit.OrganizationId
         Type: LINUX_CONTAINER
       Name: 'aws-deployment-framework-base-templates'
       ServiceRole: !Ref CodeBuildRole
@@ -668,7 +668,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: handler.lambda_handler
-      CodeUri: cross_region_bucket
+      CodeUri: lambda_codebase/cross_region_bucket
       Description: "ADF Lambda Function - Create Deployment Bucket in Main Deployment Region"
       Policies:
         - Version: "2012-10-17"
@@ -690,7 +690,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: handler.lambda_handler
-      CodeUri: organization
+      CodeUri: lambda_codebase/organization
       Description: "ADF Lambda Function - Enable AWS Organizations"
       Policies:
         - Version: "2012-10-17"
@@ -718,7 +718,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: handler.lambda_handler
-      CodeUri: organization_unit
+      CodeUri: lambda_codebase/organization_unit
       Description: "ADF Lambda Function - Create Organization Unit"
       Policies:
         - Version: "2012-10-17"
@@ -745,7 +745,7 @@ Resources:
     Condition: ShouldCreateDeploymentAccount
     Properties:
       Handler: handler.lambda_handler
-      CodeUri: account
+      CodeUri: lambda_codebase/account
       Description: "ADF Lambda Function - Create Account"
       Policies:
         - Version: "2012-10-17"
