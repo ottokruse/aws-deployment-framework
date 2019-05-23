@@ -27,7 +27,7 @@ Parameters:
   DeploymentAccountName:
     Description: "The Name of the centralized Deployment Account - only required if Deployment Account requires creation."
     Type: String
-    Default: deployment
+    Default: ""
   DeploymentAccountEmailAddress:
     Description: "The Email address associated with the Deployment Account, only required if Deployment Account requires creation."
     Type: String
@@ -59,18 +59,17 @@ Parameters:
       - "BUILD_GENERAL1_SMALL"  #3 GB memory, 2 vCPU
       - "BUILD_GENERAL1_MEDIUM" #7 GB memory, 4 vCPU
       - "BUILD_GENERAL1_LARGE"  #15 GB memory, 8 vCPU
-  # DeploymentAccountBucket:
-  #   Description: The S3 Bucket in the region that the deployment account will be hosted in - Will be created if not defined
-  #   Type: String
+  DeploymentAccountBucket:
+    Description: The S3 Bucket in the region that the deployment account will be hosted in - Will be created if not defined
+    Type: String
+    Default: ""
   OrganizationId:
     Description: The ID Of Your AWS Organization which will be used as conditional boundary for access - Will be created if not defined
     Type: String
 Conditions:
-  ShouldCreateDeploymentAccount:
-    Fn::Not:
-      - Fn::Equals:
-        - ""
-        - !Ref DeploymentAccountId
+  ShouldCreateDeploymentBucket: !Not [ !Equals [ !Ref DeploymentAccountBucket, "" ] ]
+  ShouldCreateDeploymentAccount: !Equals [ !Ref DeploymentAccountId, "" ]
+  ShouldCreateOrganization: !Equals [ !Ref OrganizationId, "" ]
 Resources:
   BootstrapTemplatesBucketPolicy:
     Type: AWS::S3::BucketPolicy
@@ -86,7 +85,7 @@ Resources:
             Effect: Allow
             Condition:
               StringEquals:
-                aws:PrincipalOrgID: !GetAtt DeploymentOrganizationUnit.OrganizationId
+                aws:PrincipalOrgID: !If [ShouldCreateOrganization, !Ref OrganizationId, !GetAtt DeploymentOrganizationUnit.OrganizationId]
             Resource:
               - !Sub arn:aws:s3:::${BootstrapTemplatesBucket}
               - !Sub arn:aws:s3:::${BootstrapTemplatesBucket}/*
@@ -116,7 +115,7 @@ Resources:
     Properties:
       Action: lambda:GetLayerVersion
       LayerVersionArn: !Ref LambdaLayerVersion
-      DeploymentOrganizationUnit.OrganizationId: !GetAtt DeploymentOrganizationUnit.OrganizationId
+      DeploymentOrganizationUnit.OrganizationId: !If [ShouldCreateOrganization, !Ref OrganizationId, !GetAtt DeploymentOrganizationUnit.OrganizationId]
       Principal: "*"
   LambdaRole:
     Type: "AWS::IAM::Role"
@@ -182,7 +181,7 @@ Resources:
           S3_BUCKET_NAME: !Ref BootstrapTemplatesBucket
           TERMINATION_PROTECTION: !Ref TerminationProtection
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ORGANIZATION_ID: !GetAtt DeploymentOrganizationUnit.OrganizationId
+          ORGANIZATION_ID: !If [ShouldCreateOrganization, !Ref OrganizationId, !GetAtt DeploymentOrganizationUnit.OrganizationId]
       FunctionName: StackWaiter
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.6
@@ -199,9 +198,9 @@ Resources:
         Variables:
           S3_BUCKET_NAME: !Ref BootstrapTemplatesBucket
           TERMINATION_PROTECTION: !Ref TerminationProtection
-          DEPLOYMENT_ACCOUNT_BUCKET: !GetAtt DeploymentAccountBucket.BucketName
+          DEPLOYMENT_ACCOUNT_BUCKET: !If [ShouldCreateDeploymentBucket, !GetAtt SharedModulesBucket.BucketName, !Ref DeploymentAccountBucket] 
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ORGANIZATION_ID: !GetAtt DeploymentOrganizationUnit.OrganizationId
+          ORGANIZATION_ID: !If [ShouldCreateOrganization, !Ref OrganizationId, !GetAtt DeploymentOrganizationUnit.OrganizationId]
       FunctionName: DetermineEventFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.6
@@ -218,9 +217,9 @@ Resources:
         Variables:
           S3_BUCKET_NAME: !Ref BootstrapTemplatesBucket
           TERMINATION_PROTECTION: !Ref TerminationProtection
-          DEPLOYMENT_ACCOUNT_BUCKET: !GetAtt DeploymentAccountBucket.BucketName
+          DEPLOYMENT_ACCOUNT_BUCKET: !If [ShouldCreateDeploymentBucket, !GetAtt SharedModulesBucket.BucketName, !Ref DeploymentAccountBucket] 
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ORGANIZATION_ID: !GetAtt DeploymentOrganizationUnit.OrganizationId
+          ORGANIZATION_ID: !If [ShouldCreateOrganization, !Ref OrganizationId, !GetAtt DeploymentOrganizationUnit.OrganizationId]
       FunctionName: CrossAccountExecuteFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.6
@@ -415,9 +414,9 @@ Resources:
           - Name: MASTER_ACCOUNT_ID
             Value: !Ref AWS::AccountId
           - Name: DEPLOYMENT_ACCOUNT_BUCKET
-            Value: !GetAtt DeploymentAccountBucket.BucketName
-          - Name: ORGANIZATION_ID
-            Value: !GetAtt DeploymentOrganizationUnit.OrganizationId
+            Value: !If [ShouldCreateDeploymentBucket, !GetAtt SharedModulesBucket.BucketName, !Ref DeploymentAccountBucket] 
+          - Name: ORGANIZATION_ID 
+            Value: !If [ShouldCreateOrganization, !Ref OrganizationId, !GetAtt DeploymentOrganizationUnit.OrganizationId]
         Type: LINUX_CONTAINER
       Name: 'aws-deployment-framework-base-templates'
       ServiceRole: !Ref CodeBuildRole
@@ -666,6 +665,7 @@ Resources:
       Timeout: 300
   SharedModulesBucket:
     Type: Custom::CrossRegionBucket
+    Condition: ShouldCreateDeploymentBucket
     Properties:
       ServiceToken: !GetAtt CrossRegionBucketHandler.Arn
       Region: !Ref DeploymentAccountMainRegion
@@ -692,6 +692,7 @@ Resources:
                 - cloudformation.amazonaws.com
   CrossRegionBucketHandler:
     Type: AWS::Serverless::Function
+    Condition: ShouldCreateDeploymentBucket
     Properties:
       Handler: handler.lambda_handler
       CodeUri: lambda_codebase/cross_region_bucket
@@ -739,12 +740,14 @@ Resources:
       Timeout: 300
   DeploymentOrganizationUnit:
     Type: Custom::OrganizationUnit
+    Condition: ShouldCreateOrganization
     Properties:
       ServiceToken: !GetAtt OrganizationUnitHandler.Arn
       ParentId: !GetAtt Organization.OrganizationRootId
       OrganizationUnitName: deployment
   OrganizationUnitHandler:
     Type: AWS::Serverless::Function
+    Condition: ShouldCreateOrganization
     Properties:
       Handler: handler.lambda_handler
       CodeUri: lambda_codebase/organization_unit
