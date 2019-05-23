@@ -25,11 +25,15 @@ Parameters:
     Description: "The Email Address (Or Slack Channel) that will receive notifications in regards to the bootstrapping pipeline on the master account."
     Type: String
   DeploymentAccountName:
-    Description: "The Name of the centralized Deployment Account - Will be created if does not exist"
+    Description: "The Name of the centralized Deployment Account - only required if Deployment Account requires creation."
     Type: String
     Default: deployment
   DeploymentAccountEmailAddress:
     Description: "The Email address associated with the Deployment Account, only required if Deployment Account requires creation."
+    Type: String
+    Default: ""
+  DeploymentAccountId:
+    Description: "The account number of the existing Deployment Account, only required if an existing account should be reused"
     Type: String
     Default: ""
   DeploymentAccountMainRegion:
@@ -66,7 +70,7 @@ Conditions:
     Fn::Not:
       - Fn::Equals:
         - ""
-        - !Ref DeploymentAccountEmailAddress
+        - !Ref DeploymentAccountId
 Resources:
   BootstrapTemplatesBucketPolicy:
     Type: AWS::S3::BucketPolicy
@@ -660,7 +664,7 @@ Resources:
       FunctionName: BootstrapCreateInitialCommitFunction
       Runtime: python3.7
       Timeout: 300
-  DeploymentAccountBucket:
+  SharedModulesBucket:
     Type: Custom::CrossRegionBucket
     Properties:
       ServiceToken: !GetAtt CrossRegionBucketHandler.Arn
@@ -677,7 +681,10 @@ Resources:
                 - Fn::Join:
                   - ""
                   - - "arn:aws:iam::"
-                    - !GetAtt CheckConfig.DeploymentAccountId
+                    - Fn::If:
+                        - ShouldCreateDeploymentAccount
+                        - !GetAtt DeploymentAccount.AccountId
+                        - !Ref DeploymentAccountId
                     - ":root"
               Service:
                 - codebuild.amazonaws.com
@@ -778,32 +785,6 @@ Resources:
                 - "organizations:DescribeCreateAccountStatus"
               Resource: "*"
       FunctionName: AccountHandler
-      Runtime: python3.7
-      Timeout: 300
-  CheckConfig:
-    Type: Custom::CheckConfig
-    Properties:
-      ServiceToken: !GetAtt CheckConfigHandler.Arn
-      DeploymentOrgUnitId: !GetAtt DeploymentOrganizationUnit.OrganizationUnitId
-      ShouldCreateDeploymentAccount:
-        Fn::If:
-          - ShouldCreateDeploymentAccount
-          - !Ref DeploymentAccount
-          - !Ref AWS::NoValue
-  CheckConfigHandler:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: handler.lambda_handler
-      CodeUri: lambda_codebase/check_config
-      Description: "ADF Lambda Function - Check Prerequisites"
-      Policies:
-        - Version: "2012-10-17"
-          Statement: 
-            - Effect: Allow
-              Action:
-                - "organizations:ListAccountsForParent"
-              Resource: "*"
-      FunctionName: CheckConfigHandler
       Runtime: python3.7
       Timeout: 300
 Outputs:
