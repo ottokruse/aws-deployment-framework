@@ -656,7 +656,7 @@ Resources:
       FunctionName: BootstrapCreateInitialCommitFunction
       Runtime: python3.7
       Timeout: 300
-  DeploymentAccountBucket:
+  SharedModulesBucket:
     Type: Custom::CrossRegionBucket
     Properties:
       ServiceToken: !GetAtt CrossRegionBucketHandler.Arn
