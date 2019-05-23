@@ -9,8 +9,8 @@ regions:
     {%- endfor %}
 config:
   main-notification-endpoint: 
-    - type: email # slack or email
-      target: {{ NotificationEmailAddress }} # Email/Slack channel who receives notifications for the main bootstrapping pipeline
+    - type: {{ NotificationEndpointType }} # slack or email
+      target: {{ NotificationEndpoint }} # Email/Slack channel who receives notifications for the main bootstrapping pipeline
   moves:
     - name: to-root
       action: safe  # Can be safe or remove-base

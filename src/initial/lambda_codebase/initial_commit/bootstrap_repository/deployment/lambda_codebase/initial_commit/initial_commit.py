@@ -28,7 +28,13 @@ class CustomResourceProperties:
     DirectoryName: str
     DeploymentAccountRegion: Optional[str] = None
     TargetRegions: Optional[List[str]] = None
-    NotificationEmailAddress: Optional[str] = None
+    NotificationEndpoint: Optional[str] = None
+
+    # def __post_init__(self):
+    #     if self.TargetRegions and isinstance(self.TargetRegions, str):
+    #         self.TargetRegions = [
+    #             region.strip() for region in self.TargetRegions.split(",")
+    #         ]
 
 
 @dataclass
