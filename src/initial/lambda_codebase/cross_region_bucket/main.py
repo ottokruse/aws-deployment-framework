@@ -1,9 +1,10 @@
-from typing import Mapping, Any, Tuple
+from typing import Mapping, Any, Tuple, MutableMapping
 from dataclasses import dataclass, asdict
 import logging
 import json
 import boto3
 import secrets
+import string
 from cfn_custom_resource import (  # pylint: disable=unused-import
     lambda_handler,
     create,
@@ -17,10 +18,13 @@ Data = Mapping[str, str]
 PhysicalResourceId = str
 Created = bool
 CloudFormationResponse = Tuple[PhysicalResourceId, Data]
+Region = str
+S3Client = Any
 
 # Globals:
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
+S3CLIENTS: MutableMapping[Region, S3Client] = {}
 
 
 class InvalidPhysicalResourceId(Exception):
@@ -53,16 +57,24 @@ class PhysicalResource:
 @create()
 def create_(event: Mapping[str, Any], _context: Any) -> CloudFormationResponse:
     region = event["ResourceProperties"]["Region"]
+    policy = event["ResourceProperties"].get("PolicyDocument")
     bucket_name_prefix = event["ResourceProperties"]["BucketNamePrefix"]
     bucket_name, created = ensure_bucket(region, bucket_name_prefix)
+    ensure_bucket_encryption(bucket_name, region)
+    if policy:
+        ensure_bucket_policy(bucket_name, region, policy)
     return PhysicalResource(region, bucket_name, created).as_cfn_response()
 
 
 @update()
 def update_(event: Mapping[str, Any], _context: Any) -> CloudFormationResponse:
     region = event["ResourceProperties"]["Region"]
+    policy = event["ResourceProperties"].get("PolicyDocument")
     bucket_name_prefix = event["ResourceProperties"]["BucketNamePrefix"]
     bucket_name, created = ensure_bucket(region, bucket_name_prefix)
+    ensure_bucket_encryption(bucket_name, region)
+    if policy:
+        ensure_bucket_policy(bucket_name, region, policy)
     return PhysicalResource(region, bucket_name, created).as_cfn_response()
 
 
@@ -88,9 +100,9 @@ def delete_(event: Mapping[str, Any], _context: Any) -> None:
 
 
 def ensure_bucket(region: str, bucket_name_prefix: str) -> Tuple[BucketName, Created]:
-    s3_client = boto3.client("s3", region_name=region)
+    s3_client = get_s3_client(region)
     while True:
-        bucket_name_suffix = secrets.token_hex(4)
+        bucket_name_suffix = ''.join(secrets.choice(string.ascii_lowercase + string.digits) for _ in range(6))
         bucket_name = f"{bucket_name_prefix}-{bucket_name_suffix}"
         try:
             s3_client.create_bucket(
@@ -99,10 +111,36 @@ def ensure_bucket(region: str, bucket_name_prefix: str) -> Tuple[BucketName, Cre
             )
             LOGGER.info(f"Bucket created: {bucket_name}")
             return bucket_name, True
-        except s3_client.exceptions.BucketAlreadyOwnedByYou:
-            LOGGER.info(f"Bucket already exists: {bucket_name}")
-            return bucket_name, False
         except s3_client.exceptions.BucketAlreadyExists:
             LOGGER.info(
                 f"Bucket name {bucket_name} already taken, trying another one ..."
             )
+
+
+def ensure_bucket_encryption(bucket_name: str, region: str) -> None:
+    s3_client = get_s3_client(region)
+    put_bucket_encryption = s3_client.put_bucket_encryption(
+        Bucket=bucket_name,
+        ServerSideEncryptionConfiguration={
+            "Rules": [
+                {"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"}}
+            ]
+        },
+    )
+
+
+def ensure_bucket_policy(bucket_name: str, region: str, policy: MutableMapping) -> None:
+    s3_client = get_s3_client(region)
+    for action in policy["Statement"]:
+        action["Resource"] = [
+            f"arn:aws:s3:::{bucket_name}", f"arn:aws:s3:::{bucket_name}/*"
+        ]
+    s3_client.put_bucket_policy(Bucket=bucket_name, Policy=json.dumps(policy))
+
+
+def get_s3_client(region: str) -> S3Client:
+    if region in S3CLIENTS:
+        return S3CLIENTS[region]
+    s3_client = boto3.client("s3", region_name=region)
+    S3CLIENTS[region] = s3_client
+    return s3_client
