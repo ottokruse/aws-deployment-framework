@@ -27,7 +27,7 @@ Metadata:
     LicenseUrl: s3://adf-base-s3-bucket-us-east-1/3b83ef96387f14655fc854ddc3c6bd57
     Name: aws-deployment-framework
     ReadmeUrl: s3://adf-base-s3-bucket-us-east-1/71af95c1fe29c5dd07c5e58c11999c78
-    SemanticVersion: 1.0.0
+    SemanticVersion: 1.0.3
     SourceCodeUrl: https://github.com/awslabs/aws-deployment-framework
     SpdxLicenseId: Apache-2.0
 Outputs:
@@ -70,7 +70,7 @@ Parameters:
   DeploymentAccountBucket:
     Default: ''
     Description: The S3 Bucket in the region that the deployment account will be hosted
-      in - Will be created if not defined
+      in - Will be created if not defined - Do not specify when updating.
     Type: String
   DeploymentAccountEmailAddress:
     Default: ''
@@ -92,16 +92,20 @@ Parameters:
       Deployment Account requires creation.
     Type: String
   DeploymentAccountTargetRegions:
+    Default: ''
     Description: A List of regions that you may want to deploy resources (Applications,
       CloudFormation etc) into via CodePipeline (This can always be updated later)
+      - Required only for initial setup
     Type: CommaDelimitedList
   Image:
     Default: aws/codebuild/standard:2.0
     Description: The Image you wish to use for CodeBuild for the bootstrap pipeline.
     Type: String
   MainNotificationEndpoint:
+    Default: ''
     Description: The Email Address (Or Slack Channel) that will receive notifications
-      in regards to the bootstrapping pipeline on the master account.
+      in regards to the bootstrapping pipeline on the master account. - Required only
+      for initial setup
     Type: String
   OrganizationId:
     Description: The ID Of Your AWS Organization which will be used as conditional
@@ -119,7 +123,7 @@ Resources:
   AccountHandler:
     Condition: ShouldCreateDeploymentAccount
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/998c67734040dfd9f06df64571d1a5dc
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/5edc39d294fd4075f9f71f734f588954
       Description: ADF Lambda Function - Create Account
       FunctionName: AccountHandler
       Handler: handler.lambda_handler
@@ -171,7 +175,7 @@ Resources:
           - Fn::Sub: arn:aws:s3:::${BootstrapTemplatesBucket}
           - Fn::Sub: arn:aws:s3:::${BootstrapTemplatesBucket}/*
     Type: AWS::S3::BucketPolicy
-  CloudwatchEventsRule:
+  CloudWatchEventsRule:
     Properties:
       Description: Triggers StateMachine on Move OU
       EventPattern:
@@ -287,9 +291,9 @@ Resources:
         BuildSpec:
           Fn::Sub: "version: 0.2\nphases:\n  install:\n    runtime-versions:\n   \
             \   python: 3.7\n      docker: 18\n  pre_build:\n    commands:\n     \
-            \ - apt-get update -qq\n      - pip install --upgrade pip\n      - pip\
-            \ install -r adf-build/requirements.txt --upgrade --quiet\n      - pytest\
-            \ -vvv\n  build:\n    commands:\n      - sam build -t deployment/global.yml\n\
+            \ - apt-get update -qq\n      - pip install --upgrade pip --quiet\n  \
+            \    - pip install -r adf-build/requirements.txt --upgrade --quiet\n \
+            \     - pytest -vvv\n  build:\n    commands:\n      - sam build -t deployment/global.yml\n\
             \      - sam package --output-template-file deployment/global.yml --s3-prefix\
             \ deployment --s3-bucket $DEPLOYMENT_ACCOUNT_BUCKET\n      - aws s3 sync\
             \ ./adf-build/shared s3://$DEPLOYMENT_ACCOUNT_BUCKET/adf-build/shared\
@@ -471,7 +475,7 @@ Resources:
   CrossRegionBucketHandler:
     Condition: ShouldCreateDeploymentBucket
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/29c6e9113388e561893f9957806035c8
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/a5caf4f2fd1f645ab6a69a2e6c37944f
       Description: ADF Lambda Function - Create Deployment Bucket in Main Deployment
         Region
       FunctionName: CrossRegionBucketHandler
@@ -575,7 +579,7 @@ Resources:
     Type: Custom::InitialCommit
   InitialCommitHandler:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/5f840e131a7a11eefe87cfe0b0b6a906
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/e39239a6ee32b41233a5b68251cea804
       Description: ADF Lambda Function - BootstrapCreateInitialCommitFunction
       FunctionName: BootstrapCreateInitialCommitFunction
       Handler: handler.lambda_handler
@@ -704,7 +708,7 @@ Resources:
     Type: Custom::Organization
   OrganizationHandler:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/bd91111b6679e1c78455193e5c254bc7
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/a593163f967db5d361d78c998662e28b
       Description: ADF Lambda Function - Enable AWS Organizations
       FunctionName: AwsOrganizationsHandler
       Handler: handler.lambda_handler
@@ -727,7 +731,7 @@ Resources:
   OrganizationUnitHandler:
     Condition: ShouldCreateOrganization
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/d902ed1e87b23ad5682a46696881c369
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/7d534beba6545393b1cc90727d52286d
       Description: ADF Lambda Function - Create Organization Unit
       FunctionName: OrganizationUnitHandler
       Handler: handler.lambda_handler

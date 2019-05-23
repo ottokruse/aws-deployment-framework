@@ -14,7 +14,7 @@ Metadata:
     ReadmeUrl: ../../README.md
     Labels: ['adf', 'aws-deployment-framework']
     HomePageUrl: https://github.com/awslabs/aws-deployment-framework
-    SemanticVersion: 1.0.0
+    SemanticVersion: 1.0.3
     SourceCodeUrl: https://github.com/awslabs/aws-deployment-framework
 Parameters:
   CrossAccountAccessRoleName:
@@ -22,8 +22,9 @@ Parameters:
     Type: String
     Default: OrganizationAccountAccessRole
   MainNotificationEndpoint:
-    Description: "The Email Address (Or Slack Channel) that will receive notifications in regards to the bootstrapping pipeline on the master account."
+    Description: "The Email Address (Or Slack Channel) that will receive notifications in regards to the bootstrapping pipeline on the master account. - Required only for initial setup"
     Type: String
+    Default: ""
   DeploymentAccountName:
     Description: "The Name of the centralized Deployment Account - only required if Deployment Account requires creation."
     Type: String
@@ -40,17 +41,14 @@ Parameters:
     Description: "The region that will centrally hold all CodePipeline deployments. This would be considered your default ADF AWS Region"
     Type: String
   DeploymentAccountTargetRegions:
-    Description: "A List of regions that you may want to deploy resources (Applications, CloudFormation etc) into via CodePipeline (This can always be updated later)"
+    Description: "A List of regions that you may want to deploy resources (Applications, CloudFormation etc) into via CodePipeline (This can always be updated later) - Required only for initial setup"
     Type: CommaDelimitedList
+    Default: ""
   TerminationProtection:
     Type: String
     Description: "Termination Protection can be passed in to enable Protection for all ADF deployed stacks"
     AllowedValues: ["true", "false"]
     Default: "false"
-  Image:
-    Description: The Image you wish to use for CodeBuild for the bootstrap pipeline.
-    Type: String
-    Default: "aws/codebuild/standard:2.0"
   ComputeType:
     Description: The Compute Type to use for AWS CodeBuild for the bootstrap pipeline.
     Type: String
@@ -60,7 +58,7 @@ Parameters:
       - "BUILD_GENERAL1_MEDIUM" #7 GB memory, 4 vCPU
       - "BUILD_GENERAL1_LARGE"  #15 GB memory, 8 vCPU
   DeploymentAccountBucket:
-    Description: The S3 Bucket in the region that the deployment account will be hosted in - Will be created if not defined
+    Description: The S3 Bucket in the region that the deployment account will be hosted in - Will be created if not defined - Do not specify when updating.
     Type: String
     Default: ""
   OrganizationId:
@@ -275,7 +273,7 @@ Resources:
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.6
       Timeout: 300
-  CloudwatchEventsRule:
+  CloudWatchEventsRule:
     Type: "AWS::Events::Rule"
     Properties: 
       Description: Triggers StateMachine on Move OU
@@ -405,7 +403,7 @@ Resources:
       Environment:
         ComputeType: !Ref ComputeType
         PrivilegedMode: true
-        Image: !Ref Image
+        Image: "aws/codebuild/standard:2.0"
         EnvironmentVariables:
           - Name: PYTHONPATH
             Value: './adf-build/shared/python'
@@ -431,7 +429,7 @@ Resources:
             pre_build:
               commands:
                 - apt-get update -qq
-                - pip install --upgrade pip
+                - pip install --upgrade pip --quiet
                 - pip install -r adf-build/requirements.txt --upgrade --quiet
                 - pytest -vvv
             build:
