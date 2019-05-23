@@ -658,6 +658,23 @@ Resources:
       ServiceToken: !GetAtt CrossRegionBucketHandler.Arn
       Region: !Ref DeploymentAccountMainRegion
       BucketNamePrefix: !Sub "adf-shared-modules-${DeploymentAccountMainRegion}"
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:Get*
+              - s3:List*
+            Effect: Allow
+            Principal:
+              AWS:
+                - Fn::Join:
+                  - ""
+                  - - "arn:aws:iam::"
+                    - !GetAtt CheckConfig.DeploymentAccountId
+                    - ":root"
+              Service:
+                - codebuild.amazonaws.com
+                - lambda.amazonaws.com
+                - cloudformation.amazonaws.com
   CrossRegionBucketHandler:
     Type: AWS::Serverless::Function
     Properties:
@@ -671,7 +688,10 @@ Resources:
               Action: s3:CreateBucket
               Resource: "*"
             - Effect: Allow
-              Action: s3:DeleteBucket
+              Action:
+                - s3:DeleteBucket
+                - s3:PutEncryptionConfiguration
+                - s3:PutBucketPolicy
               Resource: "arn:aws:s3:::adf-shared-modules-*"
       FunctionName: CrossRegionBucketHandler
       Runtime: python3.7
@@ -684,7 +704,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: handler.lambda_handler
-      CodeUri: organization
+      CodeUri: lambda_codebase/organization
       Description: "ADF Lambda Function - Enable AWS Organizations"
       Policies:
         - Version: "2012-10-17"
@@ -712,7 +732,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: handler.lambda_handler
-      CodeUri: organization_unit
+      CodeUri: lambda_codebase/organization_unit
       Description: "ADF Lambda Function - Create Organization Unit"
       Policies:
         - Version: "2012-10-17"
@@ -739,7 +759,7 @@ Resources:
     Condition: ShouldCreateDeploymentAccount
     Properties:
       Handler: handler.lambda_handler
-      CodeUri: account
+      CodeUri: lambda_codebase/account
       Description: "ADF Lambda Function - Create Account"
       Policies:
         - Version: "2012-10-17"
@@ -750,6 +770,32 @@ Resources:
                 - "organizations:DescribeCreateAccountStatus"
               Resource: "*"
       FunctionName: AccountHandler
+      Runtime: python3.7
+      Timeout: 300
+  CheckConfig:
+    Type: Custom::CheckConfig
+    Properties:
+      ServiceToken: !GetAtt CheckConfigHandler.Arn
+      DeploymentOrgUnitId: !GetAtt DeploymentOrganizationUnit.OrganizationUnitId
+      ShouldCreateDeploymentAccount:
+        Fn::If:
+          - ShouldCreateDeploymentAccount
+          - !Ref DeploymentAccount
+          - !Ref AWS::NoValue
+  CheckConfigHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.lambda_handler
+      CodeUri: lambda_codebase/check_config
+      Description: "ADF Lambda Function - Check Prerequisites"
+      Policies:
+        - Version: "2012-10-17"
+          Statement: 
+            - Effect: Allow
+              Action:
+                - "organizations:ListAccountsForParent"
+              Resource: "*"
+      FunctionName: CheckConfigHandler
       Runtime: python3.7
       Timeout: 300
 Outputs:
