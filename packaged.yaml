@@ -1,5 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: ADF CloudFormation Initial Base Stack for Master Account in US-EAST-1
+Description: ADF CloudFormation Initial Base Stack for the Master Account in the us-east-1
+  region.
 Metadata:
   AWS::ServerlessRepo::Application:
     Author: AWS ADF Builders Team
@@ -88,9 +89,9 @@ Parameters:
     Type: String
   TerminationProtection:
     AllowedValues:
-    - true
-    - false
-    Default: false
+    - 'true'
+    - 'false'
+    Default: 'false'
     Description: Termination Protection can be passed in to enable Protection for
       all ADF deployed stacks
     Type: String
@@ -379,7 +380,7 @@ Resources:
     Type: AWS::IAM::ManagedPolicy
   CrossAccountExecuteFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/5965ac835e5fc4fda52ab0797d59480c
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/437d99cea00f44354e02038ece3ef69c
       Description: ADF Lambda Function - CrossAccountExecuteFunction
       Environment:
         Variables:
@@ -406,7 +407,7 @@ Resources:
     Type: AWS::Serverless::Function
   DetermineEventFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/5965ac835e5fc4fda52ab0797d59480c
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/437d99cea00f44354e02038ece3ef69c
       Description: ADF Lambda Function - DetermineEvent
       Environment:
         Variables:
@@ -451,7 +452,7 @@ Resources:
     Type: Custom::InitialCommit
   InitialCommitHandler:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/cc8a4874d2d31dcb6a94cb6cddc24682
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/b57bafa34550084aba31df84c23a8a3e
       Description: ADF Lambda Function - BootstrapCreateInitialCommitFunction
       FunctionName: BootstrapCreateInitialCommitFunction
       Handler: handler.lambda_handler
@@ -472,7 +473,7 @@ Resources:
       CompatibleRuntimes:
       - python3.6
       - python3.7
-      ContentUri: s3://adf-base-s3-bucket-us-east-1/375d06d88663d62b70b3205d1234e817
+      ContentUri: s3://adf-base-s3-bucket-us-east-1/ed5a4cad23089ef37774c9e93c25d54c
       Description: Shared Lambda Layer between master and deployment account
       LayerName: shared_layer
     Type: AWS::Serverless::LayerVersion
@@ -543,7 +544,7 @@ Resources:
     Type: AWS::IAM::Role
   MovedToRootActionFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/5965ac835e5fc4fda52ab0797d59480c
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/437d99cea00f44354e02038ece3ef69c
       Description: ADF Lambda Function - MovedToRootActionFunction
       Environment:
         Variables:
@@ -566,7 +567,7 @@ Resources:
     Type: AWS::Serverless::Function
   RoleStackDeploymentFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/5965ac835e5fc4fda52ab0797d59480c
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/437d99cea00f44354e02038ece3ef69c
       Description: ADF Lambda Function - RoleStackDeploymentFunction
       Environment:
         Variables:
@@ -589,7 +590,7 @@ Resources:
     Type: AWS::Serverless::Function
   StackWaiterFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/5965ac835e5fc4fda52ab0797d59480c
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/437d99cea00f44354e02038ece3ef69c
       Description: ADF Lambda Function - StackWaiterFunction
       Environment:
         Variables:
@@ -694,7 +695,7 @@ Resources:
     Type: AWS::IAM::Role
   UpdateResourcePoliciesFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/5965ac835e5fc4fda52ab0797d59480c
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/437d99cea00f44354e02038ece3ef69c
       Description: ADF Lambda Function - UpdateResourcePoliciesFunction
       Environment:
         Variables:

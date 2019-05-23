@@ -40,8 +40,8 @@ Parameters:
   TerminationProtection:
     Type: String
     Description: "Termination Protection can be passed in to enable Protection for all ADF deployed stacks"
-    AllowedValues: [true, false]
-    Default: false
+    AllowedValues: ["true", "false"]
+    Default: "false"
   Image:
     Description: The Image you wish to use for CodeBuild for the bootstrap pipeline.
     Type: String

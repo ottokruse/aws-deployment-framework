@@ -89,21 +89,28 @@ def create_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId
     create_event = CreateEvent(**event)
     repo_name = repo_arn_to_name(create_event.ResourceProperties.RepositoryArn)
     directory = create_event.ResourceProperties.DirectoryName
-    files_to_commit = get_files_to_commit(directory)
-    if directory == "bootstrap_repository":
-        adf_config = create_adf_config_file(create_event.ResourceProperties)
-        files_to_commit.append(adf_config)
-    print(f"Will commit these files: {[f.filePath for f in files_to_commit]}")
-    commit_response = CC_CLIENT.create_commit(
+    branch = CC_CLIENT.get_branch(
         repositoryName=repo_name,
         branchName="master",
-        authorName="AWS ADF Builders Team",
-        email="adf-builders@amazon.com",
-        commitMessage="Initial commit",
-        putFiles=[f.as_dict() for f in files_to_commit],
     )
+    print(branch)
+    if not branch["branch"].get("commitId"):
+        files_to_commit = get_files_to_commit(directory)
+        if directory == "bootstrap_repository":
+            adf_config = create_adf_config_file(create_event.ResourceProperties)
+            files_to_commit.append(adf_config)
+        print(f"Will commit these files: {[f.filePath for f in files_to_commit]}")
+        commit_response = CC_CLIENT.create_commit(
+            repositoryName=repo_name,
+            branchName="master",
+            authorName="AWS ADF Builders Team",
+            email="adf-builders@amazon.com",
+            commitMessage="Initial automated commit",
+            putFiles=[f.as_dict() for f in files_to_commit],
+        )
 
-    return commit_response["commitId"], {}
+        return commit_response["commitId"], {}
+    return event["PhysicalResourceId"], {}
 
 
 @update()

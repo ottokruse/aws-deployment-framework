@@ -189,7 +189,6 @@ def worker_thread(
         LOGGER.info(generic_account_error)
         return
 
-
 def main():
     scp = SCP()
     config = Config()
@@ -247,6 +246,7 @@ def main():
                 stack_name=None,
                 s3=s3,
                 s3_key_path=account_path
+                parameters=_generate_global_deployment_account_parameter() if region == config.deployment_account_region else None
             )
 
             cloudformation.create_stack()
@@ -285,7 +285,7 @@ def main():
 
         step_functions.execute_statemachine()
     except ParameterNotFoundError:
-        LOGGER.info("Deployment Account has not yet been Bootstrapped.")
+        LOGGER.info("You are now ready to bootstrap a deployment account by moving it into your deployment OU.")
         return
 
 
