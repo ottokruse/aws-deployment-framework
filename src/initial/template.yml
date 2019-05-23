@@ -55,9 +55,9 @@ Parameters:
       - "BUILD_GENERAL1_SMALL"  #3 GB memory, 2 vCPU
       - "BUILD_GENERAL1_MEDIUM" #7 GB memory, 4 vCPU
       - "BUILD_GENERAL1_LARGE"  #15 GB memory, 8 vCPU
-  DeploymentAccountBucket:
-    Description: The S3 Bucket in the region that the deployment account will be hosted in - Will be created if not defined
-    Type: String
+  # DeploymentAccountBucket:
+  #   Description: The S3 Bucket in the region that the deployment account will be hosted in - Will be created if not defined
+  #   Type: String
   OrganizationId:
     Description: The ID Of Your AWS Organization which will be used as conditional boundary for access - Will be created if not defined
     Type: String
