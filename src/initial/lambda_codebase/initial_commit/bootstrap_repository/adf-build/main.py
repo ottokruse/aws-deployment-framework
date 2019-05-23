@@ -246,7 +246,6 @@ def main():
                 stack_name=None,
                 s3=s3,
                 s3_key_path=account_path
-                parameters=_generate_global_deployment_account_parameter() if region == config.deployment_account_region else None
             )
 
             cloudformation.create_stack()

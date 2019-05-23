@@ -100,6 +100,8 @@ def create_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId
             repositoryName=repo_name,
             branchName="master",
         )
+        return event.get("PhysicalResourceId"), {}
+    except CC_CLIENT.exceptions.BranchDoesNotExistException:
         files_to_commit = get_files_to_commit(directory)
         if directory == "bootstrap_repository":
             adf_config = create_adf_config_file(create_event.ResourceProperties)
@@ -114,9 +116,6 @@ def create_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId
             putFiles=[f.as_dict() for f in files_to_commit],
         )
         return commit_response["commitId"], {}
-    except CC_CLIENT.exceptions.BranchDoesNotExistException:
-        print("Will not commit since master branch already exists")
-        return event["PhysicalResourceId"], {}
 
 
 @update()

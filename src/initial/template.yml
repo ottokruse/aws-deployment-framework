@@ -67,7 +67,7 @@ Parameters:
     Description: The ID Of Your AWS Organization which will be used as conditional boundary for access - Will be created if not defined
     Type: String
 Conditions:
-  ShouldCreateDeploymentBucket: !Not [ !Equals [ !Ref DeploymentAccountBucket, "" ] ]
+  ShouldCreateDeploymentBucket: !Equals [ !Ref DeploymentAccountBucket, "" ]
   ShouldCreateDeploymentAccount: !Equals [ !Ref DeploymentAccountId, "" ]
   ShouldCreateOrganization: !Equals [ !Ref OrganizationId, "" ]
 Resources:
@@ -85,7 +85,7 @@ Resources:
             Effect: Allow
             Condition:
               StringEquals:
-                aws:PrincipalOrgID: !If [ShouldCreateOrganization, !Ref OrganizationId, !GetAtt DeploymentOrganizationUnit.OrganizationId]
+                aws:PrincipalOrgID: !If [ShouldCreateOrganization, !GetAtt DeploymentOrganizationUnit.OrganizationId, !Ref OrganizationId]
             Resource:
               - !Sub arn:aws:s3:::${BootstrapTemplatesBucket}
               - !Sub arn:aws:s3:::${BootstrapTemplatesBucket}/*
@@ -115,7 +115,7 @@ Resources:
     Properties:
       Action: lambda:GetLayerVersion
       LayerVersionArn: !Ref LambdaLayerVersion
-      DeploymentOrganizationUnit.OrganizationId: !If [ShouldCreateOrganization, !Ref OrganizationId, !GetAtt DeploymentOrganizationUnit.OrganizationId]
+      OrganizationId: !If [ShouldCreateOrganization, !GetAtt DeploymentOrganizationUnit.OrganizationId, !Ref OrganizationId]
       Principal: "*"
   LambdaRole:
     Type: "AWS::IAM::Role"
@@ -181,7 +181,7 @@ Resources:
           S3_BUCKET_NAME: !Ref BootstrapTemplatesBucket
           TERMINATION_PROTECTION: !Ref TerminationProtection
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ORGANIZATION_ID: !If [ShouldCreateOrganization, !Ref OrganizationId, !GetAtt DeploymentOrganizationUnit.OrganizationId]
+          ORGANIZATION_ID: !If [ShouldCreateOrganization, !GetAtt DeploymentOrganizationUnit.OrganizationId, !Ref OrganizationId]
       FunctionName: StackWaiter
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.6
@@ -200,7 +200,7 @@ Resources:
           TERMINATION_PROTECTION: !Ref TerminationProtection
           DEPLOYMENT_ACCOUNT_BUCKET: !If [ShouldCreateDeploymentBucket, !GetAtt SharedModulesBucket.BucketName, !Ref DeploymentAccountBucket] 
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ORGANIZATION_ID: !If [ShouldCreateOrganization, !Ref OrganizationId, !GetAtt DeploymentOrganizationUnit.OrganizationId]
+          ORGANIZATION_ID: !If [ShouldCreateOrganization, !GetAtt DeploymentOrganizationUnit.OrganizationId, !Ref OrganizationId]
       FunctionName: DetermineEventFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.6
@@ -219,7 +219,7 @@ Resources:
           TERMINATION_PROTECTION: !Ref TerminationProtection
           DEPLOYMENT_ACCOUNT_BUCKET: !If [ShouldCreateDeploymentBucket, !GetAtt SharedModulesBucket.BucketName, !Ref DeploymentAccountBucket] 
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ORGANIZATION_ID: !If [ShouldCreateOrganization, !Ref OrganizationId, !GetAtt DeploymentOrganizationUnit.OrganizationId]
+          ORGANIZATION_ID: !If [ShouldCreateOrganization, !GetAtt DeploymentOrganizationUnit.OrganizationId, !Ref OrganizationId]
       FunctionName: CrossAccountExecuteFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.6
@@ -416,7 +416,7 @@ Resources:
           - Name: DEPLOYMENT_ACCOUNT_BUCKET
             Value: !If [ShouldCreateDeploymentBucket, !GetAtt SharedModulesBucket.BucketName, !Ref DeploymentAccountBucket] 
           - Name: ORGANIZATION_ID 
-            Value: !If [ShouldCreateOrganization, !Ref OrganizationId, !GetAtt DeploymentOrganizationUnit.OrganizationId]
+            Value: !If [ShouldCreateOrganization, !GetAtt DeploymentOrganizationUnit.OrganizationId, !Ref OrganizationId]
         Type: LINUX_CONTAINER
       Name: 'aws-deployment-framework-base-templates'
       ServiceRole: !Ref CodeBuildRole

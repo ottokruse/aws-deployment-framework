@@ -5,10 +5,9 @@ Conditions:
     - Ref: DeploymentAccountId
     - ''
   ShouldCreateDeploymentBucket:
-    Fn::Not:
-    - Fn::Equals:
-      - Ref: DeploymentAccountBucket
-      - ''
+    Fn::Equals:
+    - Ref: DeploymentAccountBucket
+    - ''
   ShouldCreateOrganization:
     Fn::Equals:
     - Ref: OrganizationId
@@ -120,7 +119,7 @@ Resources:
   AccountHandler:
     Condition: ShouldCreateDeploymentAccount
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/dbe7a8e35c3a7aeb8c917c4615e66890
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/998c67734040dfd9f06df64571d1a5dc
       Description: ADF Lambda Function - Create Account
       FunctionName: AccountHandler
       Handler: handler.lambda_handler
@@ -161,10 +160,10 @@ Resources:
               aws:PrincipalOrgID:
                 Fn::If:
                 - ShouldCreateOrganization
-                - Ref: OrganizationId
                 - Fn::GetAtt:
                   - DeploymentOrganizationUnit
                   - OrganizationId
+                - Ref: OrganizationId
           Effect: Allow
           Principal:
             AWS: '*'
@@ -273,10 +272,10 @@ Resources:
           Value:
             Fn::If:
             - ShouldCreateOrganization
-            - Ref: OrganizationId
             - Fn::GetAtt:
               - DeploymentOrganizationUnit
               - OrganizationId
+            - Ref: OrganizationId
         Image:
           Ref: Image
         PrivilegedMode: true
@@ -434,7 +433,7 @@ Resources:
     Type: AWS::IAM::ManagedPolicy
   CrossAccountExecuteFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/ac9b016a4596c2a27913c789825dc9a3
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/ee8e5c1a1f20d6e9349019b48be82d4c
       Description: ADF Lambda Function - CrossAccountExecuteFunction
       Environment:
         Variables:
@@ -450,10 +449,10 @@ Resources:
           ORGANIZATION_ID:
             Fn::If:
             - ShouldCreateOrganization
-            - Ref: OrganizationId
             - Fn::GetAtt:
               - DeploymentOrganizationUnit
               - OrganizationId
+            - Ref: OrganizationId
           S3_BUCKET_NAME:
             Ref: BootstrapTemplatesBucket
           TERMINATION_PROTECTION:
@@ -472,7 +471,7 @@ Resources:
   CrossRegionBucketHandler:
     Condition: ShouldCreateDeploymentBucket
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/ad7ddd25d1e8402660af9798f44f7b55
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/29c6e9113388e561893f9957806035c8
       Description: ADF Lambda Function - Create Deployment Bucket in Main Deployment
         Region
       FunctionName: CrossRegionBucketHandler
@@ -521,7 +520,7 @@ Resources:
     Type: Custom::OrganizationUnit
   DetermineEventFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/ac9b016a4596c2a27913c789825dc9a3
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/ee8e5c1a1f20d6e9349019b48be82d4c
       Description: ADF Lambda Function - DetermineEvent
       Environment:
         Variables:
@@ -537,10 +536,10 @@ Resources:
           ORGANIZATION_ID:
             Fn::If:
             - ShouldCreateOrganization
-            - Ref: OrganizationId
             - Fn::GetAtt:
               - DeploymentOrganizationUnit
               - OrganizationId
+            - Ref: OrganizationId
           S3_BUCKET_NAME:
             Ref: BootstrapTemplatesBucket
           TERMINATION_PROTECTION:
@@ -576,7 +575,7 @@ Resources:
     Type: Custom::InitialCommit
   InitialCommitHandler:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/9ad2560e4101f87cfc4e65562cd13ee0
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/5f840e131a7a11eefe87cfe0b0b6a906
       Description: ADF Lambda Function - BootstrapCreateInitialCommitFunction
       FunctionName: BootstrapCreateInitialCommitFunction
       Handler: handler.lambda_handler
@@ -606,15 +605,15 @@ Resources:
   LambdaLayerVersionPermission:
     Properties:
       Action: lambda:GetLayerVersion
-      DeploymentOrganizationUnit.OrganizationId:
+      LayerVersionArn:
+        Ref: LambdaLayerVersion
+      OrganizationId:
         Fn::If:
         - ShouldCreateOrganization
-        - Ref: OrganizationId
         - Fn::GetAtt:
           - DeploymentOrganizationUnit
           - OrganizationId
-      LayerVersionArn:
-        Ref: LambdaLayerVersion
+        - Ref: OrganizationId
       Principal: '*'
     Type: AWS::Lambda::LayerVersionPermission
   LambdaPolicy:
@@ -675,7 +674,7 @@ Resources:
     Type: AWS::IAM::Role
   MovedToRootActionFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/ac9b016a4596c2a27913c789825dc9a3
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/ee8e5c1a1f20d6e9349019b48be82d4c
       Description: ADF Lambda Function - MovedToRootActionFunction
       Environment:
         Variables:
@@ -705,7 +704,7 @@ Resources:
     Type: Custom::Organization
   OrganizationHandler:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/9a509f5beabd81c96e3fff4d56baaf1b
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/bd91111b6679e1c78455193e5c254bc7
       Description: ADF Lambda Function - Enable AWS Organizations
       FunctionName: AwsOrganizationsHandler
       Handler: handler.lambda_handler
@@ -728,7 +727,7 @@ Resources:
   OrganizationUnitHandler:
     Condition: ShouldCreateOrganization
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/d838d5d3d967c318cea8980440dc3fb6
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/d902ed1e87b23ad5682a46696881c369
       Description: ADF Lambda Function - Create Organization Unit
       FunctionName: OrganizationUnitHandler
       Handler: handler.lambda_handler
@@ -746,7 +745,7 @@ Resources:
     Type: AWS::Serverless::Function
   RoleStackDeploymentFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/ac9b016a4596c2a27913c789825dc9a3
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/ee8e5c1a1f20d6e9349019b48be82d4c
       Description: ADF Lambda Function - RoleStackDeploymentFunction
       Environment:
         Variables:
@@ -803,7 +802,7 @@ Resources:
     Type: Custom::CrossRegionBucket
   StackWaiterFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/ac9b016a4596c2a27913c789825dc9a3
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/ee8e5c1a1f20d6e9349019b48be82d4c
       Description: ADF Lambda Function - StackWaiterFunction
       Environment:
         Variables:
@@ -812,10 +811,10 @@ Resources:
           ORGANIZATION_ID:
             Fn::If:
             - ShouldCreateOrganization
-            - Ref: OrganizationId
             - Fn::GetAtt:
               - DeploymentOrganizationUnit
               - OrganizationId
+            - Ref: OrganizationId
           S3_BUCKET_NAME:
             Ref: BootstrapTemplatesBucket
           TERMINATION_PROTECTION:
@@ -913,7 +912,7 @@ Resources:
     Type: AWS::IAM::Role
   UpdateResourcePoliciesFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/ac9b016a4596c2a27913c789825dc9a3
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/ee8e5c1a1f20d6e9349019b48be82d4c
       Description: ADF Lambda Function - UpdateResourcePoliciesFunction
       Environment:
         Variables:
