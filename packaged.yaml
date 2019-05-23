@@ -60,10 +60,6 @@ Parameters:
     Description: The Name of the Role that ADF will use to access other AWS Accounts
       within your Organization and create base stacks.
     Type: String
-  DeploymentAccountBucket:
-    Description: The S3 Bucket in the region that the deployment account will be hosted
-      in - Will be created if not defined
-    Type: String
   DeploymentAccountEmailAddress:
     Default: ''
     Description: The Email address associated with the Deployment Account, only required
@@ -106,7 +102,7 @@ Resources:
   AccountHandler:
     Condition: ShouldCreateDeploymentAccount
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/920548c61f2335a9fcad67c4697c0c13
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/877156e7f3a2ee824e4545355d437090
       Description: ADF Lambda Function - Create Account
       FunctionName: AccountHandler
       Handler: handler.lambda_handler
@@ -173,7 +169,7 @@ Resources:
     Type: Custom::CheckConfig
   CheckConfigHandler:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/bce2fdb410d50ead700101b9605d489c
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/dea47ccf580c1f2434d1dc4f4d23208a
       Description: ADF Lambda Function - Check Prerequisites
       FunctionName: CheckConfigHandler
       Handler: handler.lambda_handler
@@ -443,7 +439,7 @@ Resources:
     Type: AWS::IAM::ManagedPolicy
   CrossAccountExecuteFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/40d481a19d1603fd8875e11e0e1b5f00
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/48cbf1e9ae032a0c781a6fa73baffb47
       Description: ADF Lambda Function - CrossAccountExecuteFunction
       Environment:
         Variables:
@@ -474,7 +470,7 @@ Resources:
     Type: AWS::Serverless::Function
   CrossRegionBucketHandler:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/5c66042bbca1cfbd5c32af6527836dfc
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/a43cf5bbaa04c884090418aab512b398
       Description: ADF Lambda Function - Create Deployment Bucket in Main Deployment
         Region
       FunctionName: CrossRegionBucketHandler
@@ -552,7 +548,7 @@ Resources:
     Type: Custom::OrganizationUnit
   DetermineEventFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/40d481a19d1603fd8875e11e0e1b5f00
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/48cbf1e9ae032a0c781a6fa73baffb47
       Description: ADF Lambda Function - DetermineEvent
       Environment:
         Variables:
@@ -601,13 +597,15 @@ Resources:
     Type: Custom::InitialCommit
   InitialCommitHandler:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/da550f6ad06dcb4c7e614b50e20da658
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/baaec406df591a9c8be6514dc3c99e4e
       Description: ADF Lambda Function - BootstrapCreateInitialCommitFunction
       FunctionName: BootstrapCreateInitialCommitFunction
       Handler: handler.lambda_handler
       Policies:
       - Statement:
-        - Action: codecommit:CreateCommit
+        - Action:
+          - codecommit:CreateCommit
+          - codecommit:GetBranch
           Effect: Allow
           Resource:
             Fn::GetAtt:
@@ -695,7 +693,7 @@ Resources:
     Type: AWS::IAM::Role
   MovedToRootActionFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/40d481a19d1603fd8875e11e0e1b5f00
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/48cbf1e9ae032a0c781a6fa73baffb47
       Description: ADF Lambda Function - MovedToRootActionFunction
       Environment:
         Variables:
@@ -725,7 +723,7 @@ Resources:
     Type: Custom::Organization
   OrganizationHandler:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/1b1504e4c3fadcae6c5377ed86c187c4
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/907ef6d7da6a782d751ea90882051865
       Description: ADF Lambda Function - Enable AWS Organizations
       FunctionName: AwsOrganizationsHandler
       Handler: handler.lambda_handler
@@ -747,7 +745,7 @@ Resources:
     Type: AWS::Serverless::Function
   OrganizationUnitHandler:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/c2ad5d694130e9ea14c5ef8ae5fd927f
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/1806274e3f1cfa171078f2039f2696a7
       Description: ADF Lambda Function - Create Organization Unit
       FunctionName: OrganizationUnitHandler
       Handler: handler.lambda_handler
@@ -765,7 +763,7 @@ Resources:
     Type: AWS::Serverless::Function
   RoleStackDeploymentFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/40d481a19d1603fd8875e11e0e1b5f00
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/48cbf1e9ae032a0c781a6fa73baffb47
       Description: ADF Lambda Function - RoleStackDeploymentFunction
       Environment:
         Variables:
@@ -788,7 +786,7 @@ Resources:
     Type: AWS::Serverless::Function
   StackWaiterFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/40d481a19d1603fd8875e11e0e1b5f00
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/48cbf1e9ae032a0c781a6fa73baffb47
       Description: ADF Lambda Function - StackWaiterFunction
       Environment:
         Variables:
@@ -895,7 +893,7 @@ Resources:
     Type: AWS::IAM::Role
   UpdateResourcePoliciesFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/40d481a19d1603fd8875e11e0e1b5f00
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/48cbf1e9ae032a0c781a6fa73baffb47
       Description: ADF Lambda Function - UpdateResourcePoliciesFunction
       Environment:
         Variables:

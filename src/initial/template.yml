@@ -653,7 +653,9 @@ Resources:
         - Version: "2012-10-17"
           Statement: 
             - Effect: Allow
-              Action: codecommit:CreateCommit
+              Action: 
+                - codecommit:CreateCommit
+                - codecommit:GetBranch
               Resource: !GetAtt CodeCommitRepository.Arn
       FunctionName: BootstrapCreateInitialCommitFunction
       Runtime: python3.7
