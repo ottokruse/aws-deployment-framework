@@ -14,7 +14,7 @@ Metadata:
     ReadmeUrl: ../../README.md
     Labels: ['adf', 'aws-deployment-framework']
     HomePageUrl: https://github.com/awslabs/aws-deployment-framework
-    SemanticVersion: 1.0.18
+    SemanticVersion: 1.0.20
     SourceCodeUrl: https://github.com/awslabs/aws-deployment-framework
 Parameters:
   CrossAccountAccessRoleName:
@@ -41,7 +41,7 @@ Parameters:
     Description: "The region that will centrally hold all CodePipeline deployments. This would be considered your default ADF AWS Region"
     Type: String
   DeploymentAccountTargetRegions:
-    Description: "A List of regions that you may want to deploy resources (Applications, CloudFormation etc) into via CodePipeline (This can always be updated later) - Required only for initial setup"
+    Description: "A List of regions that you may want to deploy resources (Applications, CloudFormation etc) into via CodePipeline (This can always be updated later - Required only for initial setup - eg us-west-1,eu-west-1)"
     Type: CommaDelimitedList
     Default: ""
   TerminationProtection:
@@ -62,8 +62,9 @@ Parameters:
     Type: String
     Default: ""
   OrganizationId:
-    Description: The ID Of Your AWS Organization which will be used as conditional boundary for access - Will be created if not defined
+    Description: The ID Of Your AWS Organization which will be used as conditional boundary for access - Will be created if not defined - Do not specify when updating.
     Type: String
+    Default: ""
 Conditions:
   ShouldCreateDeploymentBucket: !Equals [ !Ref DeploymentAccountBucket, "" ]
   ShouldCreateDeploymentAccount: !Equals [ !Ref DeploymentAccountId, "" ]
@@ -83,7 +84,7 @@ Resources:
             Effect: Allow
             Condition:
               StringEquals:
-                aws:PrincipalOrgID: !If [ShouldCreateOrganization, !GetAtt DeploymentOrganizationUnit.OrganizationId, !Ref OrganizationId]
+                aws:PrincipalOrgID: !GetAtt Organization.OrganizationId
             Resource:
               - !Sub arn:aws:s3:::${BootstrapTemplatesBucket}
               - !Sub arn:aws:s3:::${BootstrapTemplatesBucket}/*
@@ -113,7 +114,7 @@ Resources:
     Properties:
       Action: lambda:GetLayerVersion
       LayerVersionArn: !Ref LambdaLayerVersion
-      OrganizationId: !If [ShouldCreateOrganization, !GetAtt DeploymentOrganizationUnit.OrganizationId, !Ref OrganizationId]
+      OrganizationId: !GetAtt Organization.OrganizationId
       Principal: "*"
   LambdaRole:
     Type: "AWS::IAM::Role"
@@ -179,7 +180,7 @@ Resources:
           S3_BUCKET_NAME: !Ref BootstrapTemplatesBucket
           TERMINATION_PROTECTION: !Ref TerminationProtection
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ORGANIZATION_ID: !If [ShouldCreateOrganization, !GetAtt DeploymentOrganizationUnit.OrganizationId, !Ref OrganizationId]
+          ORGANIZATION_ID: !GetAtt Organization.OrganizationId
       FunctionName: StackWaiter
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.7
@@ -198,7 +199,7 @@ Resources:
           TERMINATION_PROTECTION: !Ref TerminationProtection
           DEPLOYMENT_ACCOUNT_BUCKET: !If [ShouldCreateDeploymentBucket, !GetAtt SharedModulesBucket.BucketName, !Ref DeploymentAccountBucket] 
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ORGANIZATION_ID: !If [ShouldCreateOrganization, !GetAtt DeploymentOrganizationUnit.OrganizationId, !Ref OrganizationId]
+          ORGANIZATION_ID: !GetAtt Organization.OrganizationId
       FunctionName: DetermineEventFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.7
@@ -217,7 +218,7 @@ Resources:
           TERMINATION_PROTECTION: !Ref TerminationProtection
           DEPLOYMENT_ACCOUNT_BUCKET: !If [ShouldCreateDeploymentBucket, !GetAtt SharedModulesBucket.BucketName, !Ref DeploymentAccountBucket] 
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ORGANIZATION_ID: !If [ShouldCreateOrganization, !GetAtt DeploymentOrganizationUnit.OrganizationId, !Ref OrganizationId]
+          ORGANIZATION_ID: !GetAtt Organization.OrganizationId
       FunctionName: CrossAccountExecuteFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.7
@@ -414,7 +415,7 @@ Resources:
           - Name: DEPLOYMENT_ACCOUNT_BUCKET
             Value: !If [ShouldCreateDeploymentBucket, !GetAtt SharedModulesBucket.BucketName, !Ref DeploymentAccountBucket] 
           - Name: ORGANIZATION_ID 
-            Value: !If [ShouldCreateOrganization, !GetAtt DeploymentOrganizationUnit.OrganizationId, !Ref OrganizationId]
+            Value: !GetAtt Organization.OrganizationId
         Type: LINUX_CONTAINER
       Name: 'aws-deployment-framework-base-templates'
       ServiceRole: !Ref CodeBuildRole
@@ -639,7 +640,7 @@ Resources:
     Type: Custom::InitialCommit
     Properties:
       ServiceToken: !GetAtt InitialCommitHandler.Arn
-      Version: 1.0.18
+      Version: 1.0.20
       RepositoryArn: !GetAtt CodeCommitRepository.Arn
       DirectoryName: bootstrap_repository
       DeploymentAccountRegion: !Ref DeploymentAccountMainRegion
@@ -742,14 +743,12 @@ Resources:
       Timeout: 300
   DeploymentOrganizationUnit:
     Type: Custom::OrganizationUnit
-    Condition: ShouldCreateOrganization
     Properties:
       ServiceToken: !GetAtt OrganizationUnitHandler.Arn
       ParentId: !GetAtt Organization.OrganizationRootId
       OrganizationUnitName: deployment
   OrganizationUnitHandler:
     Type: AWS::Serverless::Function
-    Condition: ShouldCreateOrganization
     Properties:
       Handler: handler.lambda_handler
       CodeUri: lambda_codebase/organization_unit
@@ -769,6 +768,7 @@ Resources:
   DeploymentAccount:
     Type: Custom::Account
     Condition: ShouldCreateDeploymentAccount
+    DependsOn: Organization
     Properties:
       ServiceToken: !GetAtt AccountHandler.Arn
       AccountName: !Ref DeploymentAccountName
