@@ -661,7 +661,7 @@ Resources:
       Environment:
         Variables:
           ADF_PIPELINE_PREFIX: !Ref PipelinePrefix
-      Runtime: python3.6
+      Runtime: python3.7
       Timeout: 10
   EnableCrossAccountAccess:
     Type: "AWS::Serverless::Function"
@@ -678,7 +678,7 @@ Resources:
       FunctionName: UpdateCrossAccountIAM
       Handler: enable_cross_account_access.lambda_handler
       Role: !GetAtt LambdaRole.Arn
-      Runtime: python3.6
+      Runtime: python3.7
       Timeout: 900
   CheckPipelineStatus:
     Type: "AWS::Serverless::Function"
@@ -694,7 +694,7 @@ Resources:
       FunctionName: CheckPipelineStatus
       Handler: update_pipelines.lambda_handler
       Role: !GetAtt LambdaRole.Arn
-      Runtime: python3.6
+      Runtime: python3.7
       Timeout: 120
   LambdaRole:
     Type: "AWS::IAM::Role"
@@ -878,6 +878,7 @@ Resources:
     Properties:
       ServiceToken: !GetAtt InitialCommitHandler.Arn
       RepositoryArn: !GetAtt CodeCommitRepository.Arn
+      Version: 1.0.3
       DirectoryName: pipelines_repository
   InitialCommitHandler:
     Type: AWS::Serverless::Function
@@ -892,6 +893,9 @@ Resources:
               Action: 
                 - codecommit:CreateCommit
                 - codecommit:GetBranch
+                - codecommit:CreateBranch
+                - codecommit:CreatePullRequest
+                - codecommit:DeleteBranch
               Resource: !GetAtt CodeCommitRepository.Arn
       FunctionName: PipelinesCreateInitialCommitFunction
       Runtime: python3.7

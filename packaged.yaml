@@ -27,7 +27,7 @@ Metadata:
     LicenseUrl: s3://adf-base-s3-bucket-us-east-1/3b83ef96387f14655fc854ddc3c6bd57
     Name: aws-deployment-framework
     ReadmeUrl: s3://adf-base-s3-bucket-us-east-1/71af95c1fe29c5dd07c5e58c11999c78
-    SemanticVersion: 1.0.3
+    SemanticVersion: 1.0.18
     SourceCodeUrl: https://github.com/awslabs/aws-deployment-framework
     SpdxLicenseId: Apache-2.0
 Outputs:
@@ -97,10 +97,6 @@ Parameters:
       CloudFormation etc) into via CodePipeline (This can always be updated later)
       - Required only for initial setup
     Type: CommaDelimitedList
-  Image:
-    Default: aws/codebuild/standard:2.0
-    Description: The Image you wish to use for CodeBuild for the bootstrap pipeline.
-    Type: String
   MainNotificationEndpoint:
     Default: ''
     Description: The Email Address (Or Slack Channel) that will receive notifications
@@ -123,7 +119,7 @@ Resources:
   AccountHandler:
     Condition: ShouldCreateDeploymentAccount
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/5edc39d294fd4075f9f71f734f588954
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/ac4bb8d01c920b84e6bfb848758c4e4b
       Description: ADF Lambda Function - Create Account
       FunctionName: AccountHandler
       Handler: handler.lambda_handler
@@ -280,8 +276,7 @@ Resources:
               - DeploymentOrganizationUnit
               - OrganizationId
             - Ref: OrganizationId
-        Image:
-          Ref: Image
+        Image: aws/codebuild/standard:2.0
         PrivilegedMode: true
         Type: LINUX_CONTAINER
       Name: aws-deployment-framework-base-templates
@@ -437,7 +432,7 @@ Resources:
     Type: AWS::IAM::ManagedPolicy
   CrossAccountExecuteFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/ee8e5c1a1f20d6e9349019b48be82d4c
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/448d18ce68e3ec237a8786fc0f80286e
       Description: ADF Lambda Function - CrossAccountExecuteFunction
       Environment:
         Variables:
@@ -469,13 +464,13 @@ Resources:
         Fn::GetAtt:
         - LambdaRole
         - Arn
-      Runtime: python3.6
+      Runtime: python3.7
       Timeout: 300
     Type: AWS::Serverless::Function
   CrossRegionBucketHandler:
     Condition: ShouldCreateDeploymentBucket
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/a5caf4f2fd1f645ab6a69a2e6c37944f
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/942a8d0a7828c3cd77cd241b73a42340
       Description: ADF Lambda Function - Create Deployment Bucket in Main Deployment
         Region
       FunctionName: CrossRegionBucketHandler
@@ -524,7 +519,7 @@ Resources:
     Type: Custom::OrganizationUnit
   DetermineEventFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/ee8e5c1a1f20d6e9349019b48be82d4c
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/448d18ce68e3ec237a8786fc0f80286e
       Description: ADF Lambda Function - DetermineEvent
       Environment:
         Variables:
@@ -556,7 +551,7 @@ Resources:
         Fn::GetAtt:
         - LambdaRole
         - Arn
-      Runtime: python3.6
+      Runtime: python3.7
       Timeout: 300
     Type: AWS::Serverless::Function
   InitialCommit:
@@ -576,10 +571,11 @@ Resources:
         - Arn
       TargetRegions:
         Ref: DeploymentAccountTargetRegions
+      Version: 1.0.18
     Type: Custom::InitialCommit
   InitialCommitHandler:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/e39239a6ee32b41233a5b68251cea804
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/abf8dac816af2c064de04df44b9cc8e7
       Description: ADF Lambda Function - BootstrapCreateInitialCommitFunction
       FunctionName: BootstrapCreateInitialCommitFunction
       Handler: handler.lambda_handler
@@ -588,6 +584,9 @@ Resources:
         - Action:
           - codecommit:CreateCommit
           - codecommit:GetBranch
+          - codecommit:CreateBranch
+          - codecommit:CreatePullRequest
+          - codecommit:DeleteBranch
           Effect: Allow
           Resource:
             Fn::GetAtt:
@@ -678,7 +677,7 @@ Resources:
     Type: AWS::IAM::Role
   MovedToRootActionFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/ee8e5c1a1f20d6e9349019b48be82d4c
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/448d18ce68e3ec237a8786fc0f80286e
       Description: ADF Lambda Function - MovedToRootActionFunction
       Environment:
         Variables:
@@ -696,7 +695,7 @@ Resources:
         Fn::GetAtt:
         - LambdaRole
         - Arn
-      Runtime: python3.6
+      Runtime: python3.7
       Timeout: 900
     Type: AWS::Serverless::Function
   Organization:
@@ -708,7 +707,7 @@ Resources:
     Type: Custom::Organization
   OrganizationHandler:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/a593163f967db5d361d78c998662e28b
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/654e522f97cfbe847ddb18889a13c80d
       Description: ADF Lambda Function - Enable AWS Organizations
       FunctionName: AwsOrganizationsHandler
       Handler: handler.lambda_handler
@@ -731,7 +730,7 @@ Resources:
   OrganizationUnitHandler:
     Condition: ShouldCreateOrganization
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/7d534beba6545393b1cc90727d52286d
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/53b6b8c5621ee796e3716b22d43666ce
       Description: ADF Lambda Function - Create Organization Unit
       FunctionName: OrganizationUnitHandler
       Handler: handler.lambda_handler
@@ -749,7 +748,7 @@ Resources:
     Type: AWS::Serverless::Function
   RoleStackDeploymentFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/ee8e5c1a1f20d6e9349019b48be82d4c
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/448d18ce68e3ec237a8786fc0f80286e
       Description: ADF Lambda Function - RoleStackDeploymentFunction
       Environment:
         Variables:
@@ -767,7 +766,7 @@ Resources:
         Fn::GetAtt:
         - LambdaRole
         - Arn
-      Runtime: python3.6
+      Runtime: python3.7
       Timeout: 300
     Type: AWS::Serverless::Function
   SharedModulesBucket:
@@ -806,7 +805,7 @@ Resources:
     Type: Custom::CrossRegionBucket
   StackWaiterFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/ee8e5c1a1f20d6e9349019b48be82d4c
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/448d18ce68e3ec237a8786fc0f80286e
       Description: ADF Lambda Function - StackWaiterFunction
       Environment:
         Variables:
@@ -831,7 +830,7 @@ Resources:
         Fn::GetAtt:
         - LambdaRole
         - Arn
-      Runtime: python3.6
+      Runtime: python3.7
       Timeout: 300
     Type: AWS::Serverless::Function
   StateMachine:
@@ -916,7 +915,7 @@ Resources:
     Type: AWS::IAM::Role
   UpdateResourcePoliciesFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/ee8e5c1a1f20d6e9349019b48be82d4c
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/448d18ce68e3ec237a8786fc0f80286e
       Description: ADF Lambda Function - UpdateResourcePoliciesFunction
       Environment:
         Variables:
@@ -934,7 +933,7 @@ Resources:
         Fn::GetAtt:
         - LambdaRole
         - Arn
-      Runtime: python3.6
+      Runtime: python3.7
       Timeout: 300
     Type: AWS::Serverless::Function
 Transform: AWS::Serverless-2016-10-31

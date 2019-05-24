@@ -26,6 +26,7 @@ class CustomResourceProperties:
     ServiceToken: str
     RepositoryArn: str
     DirectoryName: str
+    Version: str
     DeploymentAccountRegion: Optional[str] = None
     TargetRegions: Optional[List[str]] = None
     NotificationEndpoint: Optional[str] = None
@@ -120,9 +121,53 @@ def create_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId
             putFiles=[f.as_dict() for f in files_to_commit],
         )
         return commit_response["commitId"], {}
-    
+
 @update()
 def update_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId, Data]:
+    print(event)
+    update_event = UpdateEvent(**event)
+    print(update_event)
+    directory = update_event.ResourceProperties["DirectoryName"]
+    files_to_commit = get_files_to_commit(directory)
+    repo_name = 'aws-deployment-framework-bootstrap' if directory == 'bootstrap_repository' else 'aws-deployment-framework-pipelines'
+    commit_id = CC_CLIENT.get_branch(
+        repositoryName=repo_name,
+        branchName="master",
+    )["branch"]["commitId"]
+    CC_CLIENT.create_branch(
+        repositoryName=repo_name,
+        branchName=update_event.ResourceProperties["Version"],
+        commitId=commit_id
+    )
+    try:
+        CC_CLIENT.create_commit(
+            repositoryName=repo_name,
+            branchName=update_event.ResourceProperties["Version"],
+            parentCommitId=commit_id,
+            authorName='ADF Update PR',
+            email='adf-builders@amazon.com',
+            commitMessage='{0} Automated Update PR'.format(update_event.ResourceProperties["Version"]),
+            putFiles=[f.as_dict() for f in files_to_commit],
+        )
+        CC_CLIENT.create_pull_request(
+            title='{0} Automated Update PR'.format(update_event.ResourceProperties["Version"]),
+            description='https://github.com/awslabs/aws-deployment-framework',
+            targets=[
+                {
+                    'repositoryName': repo_name,
+                    'sourceReference': update_event.ResourceProperties["Version"],
+                    'destinationReference': 'master'
+                },
+            ]
+        )
+    except CC_CLIENT.exceptions.FileEntryRequiredException:
+        print("No changes require commiting")
+        response = CC_CLIENT.delete_branch(
+            repositoryName=repo_name,
+            branchName=update_event.ResourceProperties["Version"]
+        )
+
+
     return event["PhysicalResourceId"], {}
 
 

@@ -13,6 +13,6 @@ config:
       target: jon.doe@email.com # Email/Slack channel who receives notifications for the main bootstrapping pipeline
   moves:
     - name: to-root
-      action: safe  # Can be safe or remove-base
+      action: safe  # Can be safe or remove-base (see docs)
   scp:
     keep-default-scp: enabled  # determines if the default AWSFullAccess SCP stays attached to all OU's 
