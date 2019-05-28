@@ -101,7 +101,7 @@ def ensure_organization() -> Tuple[OrganizationId, Created]:
 
     if describe_organization["Organization"]["FeatureSet"] != "ALL":
         raise Exception(
-            "Existing organization is only set up for CONSOLIDATED_BILLING, but AWS ADF needs ALL features"
+            "Existing organization is only set up for CONSOLIDATED_BILLING, but ADF needs ALL features"
         )
     organization_id = describe_organization["Organization"]["Id"]
     LOGGER.info(
