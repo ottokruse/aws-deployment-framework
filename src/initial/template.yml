@@ -14,32 +14,38 @@ Metadata:
     ReadmeUrl: ../../README.md
     Labels: ['adf', 'aws-deployment-framework']
     HomePageUrl: https://github.com/awslabs/aws-deployment-framework
-    SemanticVersion: 1.0.20
+    SemanticVersion: 1.0.22
     SourceCodeUrl: https://github.com/awslabs/aws-deployment-framework
 Parameters:
+  CommitInitialBootstrapContent:
+    Type: String
+    Description: "If you want AWS CloudFormation to automatically make the initial commit into the Bootstrap AWS CodeCommit Repository for on your behalf, the commit will only be made if the master branch does not yet exist - Recommended for new deployments, can be left as true while updating"
+    AllowedValues: ["true", "false"]
+    Default: "true"
   CrossAccountAccessRoleName:
-    Description: "The Name of the Role that ADF will use to access other AWS Accounts within your Organization and create base stacks."
+    Description: "The Name of the Role that ADF will use to access other AWS Accounts within your Organization and create base and update stacks."
     Type: String
     Default: OrganizationAccountAccessRole
   MainNotificationEndpoint:
-    Description: "The Email Address (Or Slack Channel) that will receive notifications in regards to the bootstrapping pipeline on the master account. - Required only for initial setup"
+    Description: "The Email Address (Or Slack Channel, see docs) that will receive notifications in regards to the bootstrapping pipeline on the master account. Required only for initial setup, Can be left as blank while updating"
     Type: String
     Default: ""
   DeploymentAccountName:
-    Description: "The Name of the centralized Deployment Account - only required if Deployment Account requires creation."
+    Description: "The Name of the centralized Deployment Account - only required if Deployment Account requires creation. Can be left as blank while updating"
     Type: String
     Default: ""
   DeploymentAccountEmailAddress:
-    Description: "The Email address associated with the Deployment Account, only required if Deployment Account requires creation."
+    Description: "The Email address associated with the Deployment Account, only required if Deployment Account requires creation. Can be left as blank while updating"
     Type: String
     Default: ""
   DeploymentAccountId:
-    Description: "The account number of the existing Deployment Account, only required if an existing account should be reused"
+    Description: "The account number of the existing Deployment Account, only required if an existing account should be re-used. A deployment account will be created if this value is omitted. Required when updating ADF."
     Type: String
     Default: ""
   DeploymentAccountMainRegion:
     Description: "The region that will centrally hold all CodePipeline deployments. This would be considered your default ADF AWS Region"
     Type: String
+    Default: ""
   DeploymentAccountTargetRegions:
     Description: "A List of regions that you may want to deploy resources (Applications, CloudFormation etc) into via CodePipeline (This can always be updated later - Required only for initial setup - eg us-west-1,eu-west-1)"
     Type: CommaDelimitedList
@@ -58,14 +64,15 @@ Parameters:
       - "BUILD_GENERAL1_MEDIUM" #7 GB memory, 4 vCPU
       - "BUILD_GENERAL1_LARGE"  #15 GB memory, 8 vCPU
   DeploymentAccountBucket:
-    Description: The S3 Bucket in the region that the deployment account will be hosted in - Will be created if not defined - Do not specify when updating.
+    Description: "The S3 Bucket in the region that the deployment account will be hosted in - Will be created if not defined. Required when updating ADF."
     Type: String
     Default: ""
   OrganizationId:
-    Description: The ID Of Your AWS Organization which will be used as conditional boundary for access - Will be created if not defined - Do not specify when updating.
+    Description: The ID Of Your AWS Organization which will be used as conditional boundary for access - Will be created if not defined. Can be left as blank while updating.
     Type: String
     Default: ""
 Conditions:
+  ShouldCommitInitialBootstrapContent: !Equals [ !Ref CommitInitialBootstrapContent, "" ]
   ShouldCreateDeploymentBucket: !Equals [ !Ref DeploymentAccountBucket, "" ]
   ShouldCreateDeploymentAccount: !Equals [ !Ref DeploymentAccountId, "" ]
   ShouldCreateOrganization: !Equals [ !Ref OrganizationId, "" ]
@@ -78,7 +85,6 @@ Resources:
         Statement:
           - Action:
               - s3:Get*
-              - s3:PutObject*
               - s3:PutReplicationConfiguration
               - s3:List*
             Effect: Allow
@@ -90,6 +96,14 @@ Resources:
               - !Sub arn:aws:s3:::${BootstrapTemplatesBucket}/*
             Principal:
               AWS: "*"
+          - Action:
+              - s3:PutObject*
+            Effect: Allow
+            Resource:
+              - !Sub arn:aws:s3:::${BootstrapTemplatesBucket}
+              - !Sub arn:aws:s3:::${BootstrapTemplatesBucket}/*
+            Principal:
+              AWS: !Ref AWS::AccountId         
   BootstrapTemplatesBucket:
     Type: "AWS::S3::Bucket"
     Properties:
@@ -638,9 +652,10 @@ Resources:
       RoleArn: !GetAtt StatesExecutionRole.Arn
   InitialCommit:
     Type: Custom::InitialCommit
+    Condition: ShouldCommitInitialBootstrapContent
     Properties:
       ServiceToken: !GetAtt InitialCommitHandler.Arn
-      Version: 1.0.20
+      Version: 1.0.22
       RepositoryArn: !GetAtt CodeCommitRepository.Arn
       DirectoryName: bootstrap_repository
       DeploymentAccountRegion: !Ref DeploymentAccountMainRegion
@@ -648,6 +663,7 @@ Resources:
       NotificationEndpoint: !Ref MainNotificationEndpoint
   InitialCommitHandler:
     Type: AWS::Serverless::Function
+    Condition: ShouldCommitInitialBootstrapContent
     Properties:
       Handler: handler.lambda_handler
       CodeUri: lambda_codebase/initial_commit

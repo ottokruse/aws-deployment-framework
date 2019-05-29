@@ -25,7 +25,8 @@ def regional_cls():
         stack_name='some_stack',
         template_url='https://some/path/regional.yml',
         s3=None,
-        s3_key_path=None
+        s3_key_path=None,
+        account_id=123
     )
 
 
@@ -39,7 +40,8 @@ def global_cls():
         stack_name=None,
         template_url='https://some/path/global.yml',
         s3=None,
-        s3_key_path='/some/location'
+        s3_key_path='/some/location',
+        account_id=123
     )
 
 

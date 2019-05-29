@@ -34,7 +34,8 @@ def worker_thread(sts, region, account_id, role, event):
         wait=True,
         stack_name=None,
         s3=None,
-        s3_key_path=None
+        s3_key_path=None,
+        account_id=account_id
     )
     return cloudformation.delete_all_base_stacks()
 

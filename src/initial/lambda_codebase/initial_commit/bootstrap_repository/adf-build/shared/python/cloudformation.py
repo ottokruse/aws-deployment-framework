@@ -96,10 +96,12 @@ class CloudFormation(StackProperties):
             s3=None,
             s3_key_path=None,
             parameters=None,
+            account_id=None, # Used for logging visibility
     ):
         self.client = role.client('cloudformation', region_name=region)
         self.wait = wait
         self.parameters = parameters
+        self.account_id = account_id
         self.template_url = template_url
         StackProperties.__init__(
             self,
@@ -120,7 +122,8 @@ class CloudFormation(StackProperties):
         waiter = self.client.get_waiter(waiter_type)
 
         LOGGER.info(
-            'Waiting for CloudFormation stack: %s in %s to reach %s',
+            '%s - Waiting for CloudFormation stack: %s in %s to reach %s',
+            self.account_id,
             self.stack_name,
             self.region,
             waiter_type
@@ -138,8 +141,8 @@ class CloudFormation(StackProperties):
         waiter = self.client.get_waiter('change_set_create_complete')
 
         LOGGER.info(
-            'Determine CloudFormation Change Set: %s in %s',
-            self.stack_name, self.region)
+            '%s - Determine CloudFormation Change Set: %s in %s',
+            self.account_id, self.stack_name, self.region)
 
         waiter.wait(
             StackName=self.stack_name,
@@ -172,6 +175,7 @@ class CloudFormation(StackProperties):
         try:
             self.template_url = self.template_url if self.template_url is not None else self.get_template_url()
             if self.template_url:
+                self.validate_template()
                 self.client.create_change_set(
                     StackName=self.stack_name,
                     TemplateURL=self.template_url,
@@ -188,17 +192,17 @@ class CloudFormation(StackProperties):
                     ChangeSetName=self.stack_name,
                     ChangeSetType=self._get_change_set_type())
 
-                self.validate_template()
                 self._wait_change_set()
                 return True
             return False
         except WaiterError as error:
             err = error.last_response
             if CloudFormation._change_set_failed_due_to_empty(err["Status"], err["StatusReason"]):
-                LOGGER.info("The submitted information does not contain changes.")
+                LOGGER.info("%s - The submitted information does not contain changes.", self.account_id)
                 self._delete_change_set()
                 return False
 
+            LOGGER.error("%s - ERROR: %s", self.account_id, err["StatusReason"], exc_info=1)
             self._delete_change_set()
             raise
 
@@ -215,12 +219,16 @@ class CloudFormation(StackProperties):
                 ChangeSetName=self.stack_name,
                 StackName=self.stack_name
             )
-        except BaseException:
+        except ClientError:
+            LOGGER.info(
+                '%s - Attempted to Delete Stack: %s, it did not exist.',
+                self.stack_name, self.account_id)
             pass
 
     def _execute_change_set(self, waiter):
         LOGGER.info(
-            'Executing Cloudformation Change Set with name: %s',
+            '%s - Executing Cloudformation Change Set with name: %s',
+            self.account_id,
             self.stack_name)
 
         self.client.execute_change_set(
@@ -263,6 +271,7 @@ class CloudFormation(StackProperties):
             return [item.get('OutputValue') for item in response.get('Stacks')
                     [0].get('Outputs') if item.get('OutputKey') == value][0]
         except BaseException:
+            LOGGER.info("%s - Attempted to get stack output from %s but it failed.", self.account_id, self.stack_name)
             return None  # Return None if describe stack call fails
 
     def get_stack_status(self):
@@ -272,6 +281,7 @@ class CloudFormation(StackProperties):
             )
             return stack['Stacks'][0]['StackStatus']
         except BaseException:
+            LOGGER.info("%s - Attempted to get stack status from %s but it failed.", self.account_id, self.stack_name)
             return None  # Return None if the stack does not exist
 
     def delete_stack(self, stack_name):

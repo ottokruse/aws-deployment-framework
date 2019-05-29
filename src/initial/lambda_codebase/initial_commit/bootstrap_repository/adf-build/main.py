@@ -26,6 +26,7 @@ from scp import SCP
 
 S3_BUCKET_NAME = os.environ["S3_BUCKET"]
 REGION_DEFAULT = os.environ["AWS_REGION"]
+ACCOUNT_ID = os.environ["MASTER_ACCOUNT_ID"]
 DEPLOYMENT_ACCOUNT_S3_BUCKET_NAME = os.environ["DEPLOYMENT_ACCOUNT_BUCKET"]
 LOGGER = configure_logger(__name__)
 
@@ -180,7 +181,8 @@ def worker_thread(
                 wait=True,
                 stack_name=None,
                 s3=s3,
-                s3_key_path=account_path
+                s3_key_path=account_path,
+                account_id=account_id
             )
 
             cloudformation.create_stack()
@@ -232,7 +234,8 @@ def main():
             wait=True,
             stack_name=None,
             s3=s3,
-            s3_key_path='adf-build'
+            s3_key_path='adf-build',
+            account_id=ACCOUNT_ID
         )
         cloudformation.create_stack()
 
@@ -245,7 +248,8 @@ def main():
                 wait=True,
                 stack_name=None,
                 s3=s3,
-                s3_key_path=account_path
+                s3_key_path=account_path,
+                account_id=deployment_account_id
             )
 
             cloudformation.create_stack()

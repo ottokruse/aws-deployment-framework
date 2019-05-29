@@ -20,6 +20,7 @@ from parameter_store import ParameterStore
 
 LOGGER = configure_logger(__name__)
 DEPLOYMENT_ACCOUNT_REGION = os.environ.get("AWS_REGION", 'us-east-1')
+DEPLOYMENT_ACCOUNT_ID = os.environ["ACCOUNT_ID"]
 MASTER_ACCOUNT_ID = os.environ.get("MASTER_ACCOUNT_ID", 'us-east-1')
 S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME")
 TARGET_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -142,7 +143,8 @@ def main(): #pylint: disable=R0915
                 pipeline.name
             ),
             s3=None,
-            s3_key_path=None
+            s3_key_path=None,
+            account_id=DEPLOYMENT_ACCOUNT_ID
         )
         cloudformation.validate_template()
         cloudformation.create_stack()

@@ -101,7 +101,8 @@ def lambda_handler(event, _):
             wait=False,
             stack_name=None, # Stack name will be automatically defined based on event
             s3=s3,
-            s3_key_path=event["full_path"]
+            s3_key_path=event["full_path"],
+            account_id=event["account_id"]
         )
         cloudformation.create_stack()
 

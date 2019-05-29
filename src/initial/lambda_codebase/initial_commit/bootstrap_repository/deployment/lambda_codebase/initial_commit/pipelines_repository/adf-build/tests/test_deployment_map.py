@@ -6,7 +6,6 @@
 import os
 import boto3
 
-from contextlib import contextmanager
 from errors import InvalidDeploymentMapError
 from pytest import fixture, raises
 from mock import Mock

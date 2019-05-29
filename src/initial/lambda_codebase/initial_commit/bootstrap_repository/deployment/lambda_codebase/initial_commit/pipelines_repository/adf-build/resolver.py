@@ -44,7 +44,8 @@ class Resolver:
             region=region,
             deployment_account_region=os.environ["AWS_REGION"],
             role=role,
-            stack_name=stack_name
+            stack_name=stack_name,
+            account_id=account_id
         )
         LOGGER.info("Retrieving value of key %s from %s on %s in %s", export, stack_name, account_id, region)
         stack_output = cloudformation.get_stack_output(export)
