@@ -334,7 +334,7 @@ To update ADF between *minor* releases you can run the same commands used to ins
 
 ```bash
 aws cloudformation package \
---template-file $PWD/src/initial/template.yml \
+--template-file $PWD/src/template.yml \
 --s3-bucket MASTER_ACCOUNT_BUCKET_NAME \
 --output-template-file $PWD/template-deploy.yml \
 --region us-east-1

@@ -1,9 +1,10 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Conditions:
   ShouldCommitInitialBootstrapContent:
-    Fn::Equals:
-    - Ref: CommitInitialBootstrapContent
-    - ''
+    Fn::Not:
+    - Fn::Equals:
+      - Ref: CommitInitialBootstrapContent
+      - ''
   ShouldCreateDeploymentAccount:
     Fn::Equals:
     - Ref: DeploymentAccountId
@@ -31,14 +32,18 @@ Metadata:
     LicenseUrl: s3://adf-base-s3-bucket-us-east-1/3b83ef96387f14655fc854ddc3c6bd57
     Name: aws-deployment-framework
     ReadmeUrl: s3://adf-base-s3-bucket-us-east-1/71af95c1fe29c5dd07c5e58c11999c78
-    SemanticVersion: 1.0.22
+    SemanticVersion: 1.0.69
     SourceCodeUrl: https://github.com/awslabs/aws-deployment-framework
     SpdxLicenseId: Apache-2.0
 Outputs:
+  ADFVersionNumber:
+    Export:
+      Name: ADFVersionNumber
+    Value: 1.0.69
   CodeCommitHttpURL:
     Description: The CodeCommit HTTP Url
     Export:
-      Name: aws-deployment-framework-base-templates-codecommit-http-url
+      Name: BaseTemplatesRepoHttpURL
     Value:
       Fn::GetAtt:
       - CodeCommitRepository
@@ -46,7 +51,7 @@ Outputs:
   CodeCommitSshURL:
     Description: The CodeCommit SSH Url
     Export:
-      Name: aws-deployment-framework-base-templates-codecommit-ssh-url
+      Name: BaseTemplatesRepoSSHURL
     Value:
       Fn::GetAtt:
       - CodeCommitRepository
@@ -54,18 +59,19 @@ Outputs:
   LayerArn:
     Description: The Shared modules Lambda Layer Arn
     Export:
-      Name: deployment-framework-shared-lambda-layer
+      Name: SharedLayerArn
     Value:
       Ref: LambdaLayerVersion
 Parameters:
   CommitInitialBootstrapContent:
     AllowedValues:
-    - 'true'
-    - 'false'
-    Default: 'true'
-    Description: If you want CloudFormation to automatically make the initial commit
-      into the Bootstrap repo for you - Recommended for new deployments, can be left
-      as true while updating
+    - 'True'
+    - 'False'
+    Default: 'True'
+    Description: If you want AWS CloudFormation to automatically make the initial
+      commit into the Bootstrap AWS CodeCommit Repository for on your behalf, the
+      commit will only be made if the master branch does not yet exist - Recommended
+      for new deployments, can be left as True while updating
     Type: String
   ComputeType:
     AllowedValues:
@@ -78,22 +84,23 @@ Parameters:
   CrossAccountAccessRoleName:
     Default: OrganizationAccountAccessRole
     Description: The Name of the Role that ADF will use to access other AWS Accounts
-      within your Organization and create base stacks.
+      within your Organization and create base and update stacks.
     Type: String
   DeploymentAccountBucket:
     Default: ''
     Description: The S3 Bucket in the region that the deployment account will be hosted
-      in - Will be created if not defined - Do not specify when updating.
+      in - Will be created if not defined. Required when updating ADF.
     Type: String
   DeploymentAccountEmailAddress:
     Default: ''
     Description: The Email address associated with the Deployment Account, only required
-      if Deployment Account requires creation.
+      if Deployment Account requires creation. Can be left as blank while updating
     Type: String
   DeploymentAccountId:
     Default: ''
     Description: The account number of the existing Deployment Account, only required
-      if an existing account should be reused
+      if an existing account should be re-used. A deployment account will be created
+      if this value is omitted. Required when updating ADF.
     Type: String
   DeploymentAccountMainRegion:
     Default: ''
@@ -103,7 +110,7 @@ Parameters:
   DeploymentAccountName:
     Default: ''
     Description: The Name of the centralized Deployment Account - only required if
-      Deployment Account requires creation.
+      Deployment Account requires creation. Can be left as blank while updating
     Type: String
   DeploymentAccountTargetRegions:
     Default: ''
@@ -113,20 +120,21 @@ Parameters:
     Type: CommaDelimitedList
   MainNotificationEndpoint:
     Default: ''
-    Description: The Email Address (Or Slack Channel) that will receive notifications
-      in regards to the bootstrapping pipeline on the master account. - Required only
-      for initial setup
+    Description: The Email Address (Or Slack Channel, see docs) that will receive
+      notifications in regards to the bootstrapping pipeline on the master account.
+      Required only for initial setup, Can be left as blank while updating
     Type: String
   OrganizationId:
     Default: ''
     Description: The ID Of Your AWS Organization which will be used as conditional
-      boundary for access - Will be created if not defined - Do not specify when updating.
+      boundary for access - Will be created if not defined. Can be left as blank while
+      updating.
     Type: String
   TerminationProtection:
     AllowedValues:
-    - 'true'
-    - 'false'
-    Default: 'false'
+    - 'True'
+    - 'False'
+    Default: 'False'
     Description: Termination Protection can be passed in to enable Protection for
       all ADF deployed stacks
     Type: String
@@ -134,7 +142,7 @@ Resources:
   AccountHandler:
     Condition: ShouldCreateDeploymentAccount
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/f95c88564417c65a0979bb1878c2b092
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/f770d5992f9edf6959f7b3a3773a4b8d
       Description: ADF Lambda Function - Create Account
       FunctionName: AccountHandler
       Handler: handler.lambda_handler
@@ -272,6 +280,11 @@ Resources:
         ComputeType:
           Ref: ComputeType
         EnvironmentVariables:
+        - Name: ADF_VERSION
+          Value: 1.0.69
+        - Name: TERMINATION_PROTECTION
+          Value:
+            Ref: TerminationProtection
         - Name: PYTHONPATH
           Value: ./adf-build/shared/python
         - Name: S3_BUCKET
@@ -449,10 +462,11 @@ Resources:
     Type: AWS::IAM::ManagedPolicy
   CrossAccountExecuteFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/e64d5090587aa39401fdc9a3b55147ac
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/58b7bcc9786651c7e5ba6d0c969f860f
       Description: ADF Lambda Function - CrossAccountExecuteFunction
       Environment:
         Variables:
+          ADF_VERSION: 1.0.69
           DEPLOYMENT_ACCOUNT_BUCKET:
             Fn::If:
             - ShouldCreateDeploymentBucket
@@ -484,7 +498,7 @@ Resources:
   CrossRegionBucketHandler:
     Condition: ShouldCreateDeploymentBucket
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/949a6cb538c0e8d6425acf94830858f4
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/2115579d05df267a0321b1882963a5c5
       Description: ADF Lambda Function - Create Deployment Bucket in Main Deployment
         Region
       FunctionName: CrossRegionBucketHandler
@@ -533,10 +547,11 @@ Resources:
     Type: Custom::OrganizationUnit
   DetermineEventFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/e64d5090587aa39401fdc9a3b55147ac
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/58b7bcc9786651c7e5ba6d0c969f860f
       Description: ADF Lambda Function - DetermineEvent
       Environment:
         Variables:
+          ADF_VERSION: 1.0.69
           DEPLOYMENT_ACCOUNT_BUCKET:
             Fn::If:
             - ShouldCreateDeploymentBucket
@@ -583,18 +598,19 @@ Resources:
         - Arn
       TargetRegions:
         Ref: DeploymentAccountTargetRegions
-      Version: 1.0.22
+      Version: 1.0.69
     Type: Custom::InitialCommit
   InitialCommitHandler:
     Condition: ShouldCommitInitialBootstrapContent
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/cd4da139c23745a3730108d76bd76ea2
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/96759563d5f2ec74eb0ee48dc6dee2a7
       Description: ADF Lambda Function - BootstrapCreateInitialCommitFunction
       FunctionName: BootstrapCreateInitialCommitFunction
       Handler: handler.lambda_handler
       Policies:
       - Statement:
         - Action:
+          - codecommit:GetDifferences
           - codecommit:CreateCommit
           - codecommit:GetBranch
           - codecommit:CreateBranch
@@ -614,7 +630,7 @@ Resources:
       CompatibleRuntimes:
       - python3.6
       - python3.7
-      ContentUri: s3://adf-base-s3-bucket-us-east-1/3265bc084ddb2697a1cf109fc0972204
+      ContentUri: s3://adf-base-s3-bucket-us-east-1/2ece7718c97f4491588b77dd24e95a34
       Description: Shared Lambda Layer between master and deployment account
       LayerName: shared_layer
     Type: AWS::Serverless::LayerVersion
@@ -687,10 +703,11 @@ Resources:
     Type: AWS::IAM::Role
   MovedToRootActionFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/e64d5090587aa39401fdc9a3b55147ac
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/58b7bcc9786651c7e5ba6d0c969f860f
       Description: ADF Lambda Function - MovedToRootActionFunction
       Environment:
         Variables:
+          ADF_VERSION: 1.0.69
           MASTER_ACCOUNT_ID:
             Ref: AWS::AccountId
           S3_BUCKET_NAME:
@@ -717,7 +734,7 @@ Resources:
     Type: Custom::Organization
   OrganizationHandler:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/68860acd941ed494168c91a028adbf14
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/ee3c7c545c0ccb2c177a3809cc94d01d
       Description: ADF Lambda Function - Enable AWS Organizations
       FunctionName: AwsOrganizationsHandler
       Handler: handler.lambda_handler
@@ -739,7 +756,7 @@ Resources:
     Type: AWS::Serverless::Function
   OrganizationUnitHandler:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/6de34fb20ccd4ce77da7adab8b02d76e
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/b390aadf04d7c78a53e6f5472a6bc180
       Description: ADF Lambda Function - Create Organization Unit
       FunctionName: OrganizationUnitHandler
       Handler: handler.lambda_handler
@@ -757,7 +774,7 @@ Resources:
     Type: AWS::Serverless::Function
   RoleStackDeploymentFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/e64d5090587aa39401fdc9a3b55147ac
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/58b7bcc9786651c7e5ba6d0c969f860f
       Description: ADF Lambda Function - RoleStackDeploymentFunction
       Environment:
         Variables:
@@ -814,7 +831,7 @@ Resources:
     Type: Custom::CrossRegionBucket
   StackWaiterFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/e64d5090587aa39401fdc9a3b55147ac
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/58b7bcc9786651c7e5ba6d0c969f860f
       Description: ADF Lambda Function - StackWaiterFunction
       Environment:
         Variables:
@@ -921,10 +938,11 @@ Resources:
     Type: AWS::IAM::Role
   UpdateResourcePoliciesFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/e64d5090587aa39401fdc9a3b55147ac
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/58b7bcc9786651c7e5ba6d0c969f860f
       Description: ADF Lambda Function - UpdateResourcePoliciesFunction
       Environment:
         Variables:
+          ADF_VERSION: 1.0.69
           MASTER_ACCOUNT_ID:
             Ref: AWS::AccountId
           S3_BUCKET_NAME:
