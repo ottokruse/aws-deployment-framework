@@ -30,15 +30,15 @@ Metadata:
     - aws-deployment-framework
     LicenseUrl: s3://adf-base-s3-bucket-us-east-1/3b83ef96387f14655fc854ddc3c6bd57
     Name: aws-deployment-framework
-    ReadmeUrl: s3://adf-base-s3-bucket-us-east-1/71af95c1fe29c5dd07c5e58c11999c78
-    SemanticVersion: 1.0.75
+    ReadmeUrl: s3://adf-base-s3-bucket-us-east-1/6af2317d9b86a9a584b7515344bf2126
+    SemanticVersion: 1.0.76
     SourceCodeUrl: https://github.com/awslabs/aws-deployment-framework
     SpdxLicenseId: Apache-2.0
 Outputs:
   ADFVersionNumber:
     Export:
       Name: ADFVersionNumber
-    Value: 1.0.75
+    Value: 1.0.76
   CodeCommitHttpURL:
     Description: The CodeCommit HTTP Url
     Export:
@@ -141,7 +141,7 @@ Resources:
   AccountHandler:
     Condition: ShouldCreateDeploymentAccount
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/79006636c6b5a86cf57be4ae16bbd145
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/a12d35bc98e70ddf3860cb6c438bce90
       Description: ADF Lambda Function - Create Account
       FunctionName: AccountHandler
       Handler: handler.lambda_handler
@@ -280,7 +280,7 @@ Resources:
           Ref: ComputeType
         EnvironmentVariables:
         - Name: ADF_VERSION
-          Value: 1.0.75
+          Value: 1.0.76
         - Name: TERMINATION_PROTECTION
           Value:
             Ref: TerminationProtection
@@ -461,11 +461,11 @@ Resources:
     Type: AWS::IAM::ManagedPolicy
   CrossAccountExecuteFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/53c905bbb9547699c5d98b9a3e6dd721
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/33dbcddc95cd753d387bf1b217eb39d6
       Description: ADF Lambda Function - CrossAccountExecuteFunction
       Environment:
         Variables:
-          ADF_VERSION: 1.0.75
+          ADF_VERSION: 1.0.76
           DEPLOYMENT_ACCOUNT_BUCKET:
             Fn::If:
             - ShouldCreateDeploymentBucket
@@ -497,7 +497,7 @@ Resources:
   CrossRegionBucketHandler:
     Condition: ShouldCreateDeploymentBucket
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/2aa9619029a735b42c10974609130510
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/8bf622c8d0f9e48e6c15834c589cea1f
       Description: ADF Lambda Function - Create Deployment Bucket in Main Deployment
         Region
       FunctionName: CrossRegionBucketHandler
@@ -546,11 +546,11 @@ Resources:
     Type: Custom::OrganizationUnit
   DetermineEventFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/53c905bbb9547699c5d98b9a3e6dd721
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/33dbcddc95cd753d387bf1b217eb39d6
       Description: ADF Lambda Function - DetermineEvent
       Environment:
         Variables:
-          ADF_VERSION: 1.0.75
+          ADF_VERSION: 1.0.76
           DEPLOYMENT_ACCOUNT_BUCKET:
             Fn::If:
             - ShouldCreateDeploymentBucket
@@ -597,12 +597,12 @@ Resources:
         - Arn
       TargetRegions:
         Ref: DeploymentAccountTargetRegions
-      Version: 1.0.75
+      Version: 1.0.76
     Type: Custom::InitialCommit
   InitialCommitHandler:
     Condition: ShouldCommitInitialBootstrapContent
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/6aaffa8e8c6f5961a000e95f75048ca1
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/d0059a609add74ccabbfacb09b9bb9cb
       Description: ADF Lambda Function - BootstrapCreateInitialCommitFunction
       FunctionName: BootstrapCreateInitialCommitFunction
       Handler: handler.lambda_handler
@@ -702,11 +702,11 @@ Resources:
     Type: AWS::IAM::Role
   MovedToRootActionFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/53c905bbb9547699c5d98b9a3e6dd721
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/33dbcddc95cd753d387bf1b217eb39d6
       Description: ADF Lambda Function - MovedToRootActionFunction
       Environment:
         Variables:
-          ADF_VERSION: 1.0.75
+          ADF_VERSION: 1.0.76
           MASTER_ACCOUNT_ID:
             Ref: AWS::AccountId
           S3_BUCKET_NAME:
@@ -733,7 +733,7 @@ Resources:
     Type: Custom::Organization
   OrganizationHandler:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/fbaed26c8dd602b3742b6d58bc52e5e0
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/6e4c2a71a00e396ed1e0382056b63357
       Description: ADF Lambda Function - Enable AWS Organizations
       FunctionName: AwsOrganizationsHandler
       Handler: handler.lambda_handler
@@ -755,7 +755,7 @@ Resources:
     Type: AWS::Serverless::Function
   OrganizationUnitHandler:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/decfb1df32888b773a01443ff36e8e74
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/a6a0690cc7a2f03c13c4236ee2f10e2b
       Description: ADF Lambda Function - Create Organization Unit
       FunctionName: OrganizationUnitHandler
       Handler: handler.lambda_handler
@@ -773,7 +773,7 @@ Resources:
     Type: AWS::Serverless::Function
   RoleStackDeploymentFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/53c905bbb9547699c5d98b9a3e6dd721
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/33dbcddc95cd753d387bf1b217eb39d6
       Description: ADF Lambda Function - RoleStackDeploymentFunction
       Environment:
         Variables:
@@ -830,7 +830,7 @@ Resources:
     Type: Custom::CrossRegionBucket
   StackWaiterFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/53c905bbb9547699c5d98b9a3e6dd721
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/33dbcddc95cd753d387bf1b217eb39d6
       Description: ADF Lambda Function - StackWaiterFunction
       Environment:
         Variables:
@@ -937,11 +937,11 @@ Resources:
     Type: AWS::IAM::Role
   UpdateResourcePoliciesFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/53c905bbb9547699c5d98b9a3e6dd721
+      CodeUri: s3://adf-base-s3-bucket-us-east-1/33dbcddc95cd753d387bf1b217eb39d6
       Description: ADF Lambda Function - UpdateResourcePoliciesFunction
       Environment:
         Variables:
-          ADF_VERSION: 1.0.75
+          ADF_VERSION: 1.0.76
           MASTER_ACCOUNT_ID:
             Ref: AWS::AccountId
           S3_BUCKET_NAME:

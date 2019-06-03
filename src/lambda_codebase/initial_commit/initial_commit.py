@@ -142,7 +142,7 @@ def update_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId
     repo_name = repo_arn_to_name(update_event.ResourceProperties.RepositoryArn)
     files_to_delete = get_files_to_delete(repo_name)
     files_to_commit = get_files_to_commit(directory)
-
+    print(f"Will commit these files: {[f.filePath for f in files_to_commit]}")
     commit_id = CC_CLIENT.get_branch(
         repositoryName=repo_name,
         branchName="master",
@@ -201,7 +201,7 @@ def get_files_to_delete(repo_name: str) -> List[FileToDelete]:
         for file in differences
         if 'adfconfig.yml' not in file['afterBlob']['path']
         and 'scp.json' not in file['afterBlob']['path']
-        #and 'global.yml' not in file['afterBlob']['path']
+        and 'global.yml' not in file['afterBlob']['path']
         and 'regional.yml' not in file['afterBlob']['path']
         and 'deployment_map.yml' not in file['afterBlob']['path']
         and '.DS_Store' not in file['afterBlob']['path']

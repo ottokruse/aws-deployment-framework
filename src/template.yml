@@ -14,7 +14,7 @@ Metadata:
     ReadmeUrl: ../README.md
     Labels: ['adf', 'aws-deployment-framework']
     HomePageUrl: https://github.com/awslabs/aws-deployment-framework
-    SemanticVersion: 1.0.75
+    SemanticVersion: 1.0.76
     SourceCodeUrl: https://github.com/awslabs/aws-deployment-framework
 Parameters:
   CommitInitialBootstrapContent:
@@ -214,7 +214,7 @@ Resources:
           DEPLOYMENT_ACCOUNT_BUCKET: !If [ShouldCreateDeploymentBucket, !GetAtt SharedModulesBucket.BucketName, !Ref DeploymentAccountBucket] 
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
           ORGANIZATION_ID: !GetAtt Organization.OrganizationId
-          ADF_VERSION: 1.0.75
+          ADF_VERSION: 1.0.76
       FunctionName: DetermineEventFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.7
@@ -234,7 +234,7 @@ Resources:
           DEPLOYMENT_ACCOUNT_BUCKET: !If [ShouldCreateDeploymentBucket, !GetAtt SharedModulesBucket.BucketName, !Ref DeploymentAccountBucket] 
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
           ORGANIZATION_ID: !GetAtt Organization.OrganizationId
-          ADF_VERSION: 1.0.75
+          ADF_VERSION: 1.0.76
       FunctionName: CrossAccountExecuteFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.7
@@ -269,7 +269,7 @@ Resources:
           S3_BUCKET_NAME: !Ref BootstrapTemplatesBucket
           TERMINATION_PROTECTION: !Ref TerminationProtection
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ADF_VERSION: 1.0.75
+          ADF_VERSION: 1.0.76
       FunctionName: MovedToRootActionFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.7
@@ -287,7 +287,7 @@ Resources:
           S3_BUCKET_NAME: !Ref BootstrapTemplatesBucket
           TERMINATION_PROTECTION: !Ref TerminationProtection
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ADF_VERSION: 1.0.75
+          ADF_VERSION: 1.0.76
       FunctionName: UpdateResourcePoliciesFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.7
@@ -425,7 +425,7 @@ Resources:
         Image: "aws/codebuild/standard:2.0"
         EnvironmentVariables:
           - Name: ADF_VERSION
-            Value: 1.0.75
+            Value: 1.0.76
           - Name: TERMINATION_PROTECTION
             Value: !Ref TerminationProtection
           - Name: PYTHONPATH
@@ -663,7 +663,7 @@ Resources:
     Condition: ShouldCommitInitialBootstrapContent
     Properties:
       ServiceToken: !GetAtt InitialCommitHandler.Arn
-      Version: 1.0.75
+      Version: 1.0.76
       RepositoryArn: !GetAtt CodeCommitRepository.Arn
       DirectoryName: bootstrap_repository
       DeploymentAccountRegion: !Ref DeploymentAccountMainRegion
@@ -819,7 +819,7 @@ Resources:
       Timeout: 300
 Outputs:
   ADFVersionNumber:
-    Value: 1.0.75
+    Value: 1.0.76
     Export:
       Name: "ADFVersionNumber"
   LayerArn:
