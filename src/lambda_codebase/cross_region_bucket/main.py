@@ -76,7 +76,6 @@ def create_(event: Mapping[str, Any], _context: Any) -> CloudFormationResponse:
 
 @update()
 def update_(event: Mapping[str, Any], _context: Any) -> CloudFormationResponse:
-    print(event)
     region = event["ResourceProperties"]["Region"]
     policy = event["ResourceProperties"].get("PolicyDocument")
     bucket_name_prefix = event["ResourceProperties"]["BucketNamePrefix"]

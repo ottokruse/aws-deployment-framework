@@ -83,7 +83,6 @@ class Organizations: # pylint: disable=R0904
 
     def list_scps(self, name):
         response = list(paginator(self.client.list_policies, Filter="SERVICE_CONTROL_POLICY"))
-        print(response)
         try:
             return [policy for policy in response if policy['Name'] == name][0]['Id']
         except IndexError:

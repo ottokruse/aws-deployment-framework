@@ -137,14 +137,10 @@ def create_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId
 
 @update()
 def update_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId, Data]:
-    print(event)
     update_event = UpdateEvent(**event)
-    print(update_event)
     directory = update_event.ResourceProperties.DirectoryName
     repo_name = repo_arn_to_name(update_event.ResourceProperties.RepositoryArn)
-
     files_to_delete = get_files_to_delete(repo_name)
-    print(files_to_delete)
     files_to_commit = get_files_to_commit(directory)
 
     commit_id = CC_CLIENT.get_branch(
@@ -169,7 +165,7 @@ def update_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId
         )
         CC_CLIENT.create_pull_request(
             title='ADF {0} Automated Update PR'.format(update_event.ResourceProperties.Version),
-            description='https://github.com/awslabs/aws-deployment-framework',
+            description='ADF Version {0} from https://github.com/awslabs/aws-deployment-framework'.format(update_event.ResourceProperties.Version),
             targets=[
                 {
                     'repositoryName': repo_name,
@@ -210,6 +206,7 @@ def get_files_to_delete(repo_name: str) -> List[FileToDelete]:
         and 'global.yml' not in file['afterBlob']['path']
         and 'regional.yml' not in file['afterBlob']['path']
         and 'deployment_map.yml' not in file['afterBlob']['path']
+        and '.DS_Store' not in file['afterBlob']['path']
     ]
 
     # 30: trimming off /var/task/pipeline_repository so we can compare correctly

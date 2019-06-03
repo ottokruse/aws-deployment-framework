@@ -8,6 +8,7 @@ config.sec
 config.bak
 policy.json
 pipeline.yml
+packaged.yaml
 template-sam.yaml
 template-deploy.yml
 master-deploy.yml

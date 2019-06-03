@@ -137,14 +137,10 @@ def create_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId
 
 @update()
 def update_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId, Data]:
-    print(event)
     update_event = UpdateEvent(**event)
-    print(update_event)
     directory = update_event.ResourceProperties.DirectoryName
     repo_name = repo_arn_to_name(update_event.ResourceProperties.RepositoryArn)
-
     files_to_delete = get_files_to_delete(repo_name)
-    print(files_to_delete)
     files_to_commit = get_files_to_commit(directory)
 
     commit_id = CC_CLIENT.get_branch(
@@ -169,7 +165,7 @@ def update_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId
         )
         CC_CLIENT.create_pull_request(
             title='ADF {0} Automated Update PR'.format(update_event.ResourceProperties.Version),
-            description='https://github.com/awslabs/aws-deployment-framework',
+            description='ADF Version {0} from https://github.com/awslabs/aws-deployment-framework'.format(update_event.ResourceProperties.Version),
             targets=[
                 {
                     'repositoryName': repo_name,
@@ -179,7 +175,6 @@ def update_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId
             ]
         )
     except (CC_CLIENT.exceptions.FileEntryRequiredException, CC_CLIENT.exceptions.NoChangeException):
-        print("No changes require commiting")
         CC_CLIENT.delete_branch(
             repositoryName=repo_name,
             branchName=update_event.ResourceProperties.Version
@@ -191,7 +186,6 @@ def update_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId
 @delete()
 def delete_(_event, _context):
     pass
-
 
 def repo_arn_to_name(repo_arn: str) -> str:
     return repo_arn.split(":")[-1]
@@ -207,9 +201,10 @@ def get_files_to_delete(repo_name: str) -> List[FileToDelete]:
         for file in differences
         if 'adfconfig.yml' not in file['afterBlob']['path']
         and 'scp.json' not in file['afterBlob']['path']
-        and 'global.yml' not in file['afterBlob']['path']
+        #and 'global.yml' not in file['afterBlob']['path']
         and 'regional.yml' not in file['afterBlob']['path']
         and 'deployment_map.yml' not in file['afterBlob']['path']
+        and '.DS_Store' not in file['afterBlob']['path']
     ]
 
     # 31: trimming off /var/task/bootstrap_repository so we can compare correctly
