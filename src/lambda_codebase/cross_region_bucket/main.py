@@ -11,7 +11,7 @@ from dataclasses import dataclass, asdict
 import logging
 import json
 import secrets
-import string
+import string  # pylint: disable=deprecated-module # https://www.logilab.org/ticket/2481
 import boto3
 from cfn_custom_resource import (  # pylint: disable=unused-import
     lambda_handler,
@@ -33,7 +33,7 @@ S3Client = Any
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
 S3CLIENTS: MutableMapping[Region, S3Client] = {}
-
+SSM_CLIENT = boto3.client('ssm')
 
 class InvalidPhysicalResourceId(Exception):
     pass
@@ -110,6 +110,12 @@ def delete_(event: Mapping[str, Any], _context: Any) -> None:
 
 
 def ensure_bucket(region: str, bucket_name_prefix: str) -> Tuple[BucketName, Created]:
+    try:
+        get_parameter = SSM_CLIENT.get_parameter(Name='shared_modules_bucket')
+        return get_parameter["Parameter"]["Value"], False
+    except SSM_CLIENT.exceptions.ParameterNotFound:
+        pass  # Carry on with creating the bucket
+
     s3_client = get_s3_client(region)
     while True:
         bucket_name_suffix = ''.join(secrets.choice(string.ascii_lowercase + string.digits) for _ in range(6))
