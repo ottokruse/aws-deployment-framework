@@ -12,14 +12,14 @@ Metadata:
     SpdxLicenseId: Apache-2.0
     LicenseUrl: ../LICENSE.txt
     ReadmeUrl: ../README.md
-    Labels: ['adf', 'aws-deployment-framework']
+    Labels: ['adf', 'aws-deployment-framework', 'multi-account', 'cicd', 'devops']
     HomePageUrl: https://github.com/awslabs/aws-deployment-framework
-    SemanticVersion: 1.0.81
+    SemanticVersion: 1.0.85
     SourceCodeUrl: https://github.com/awslabs/aws-deployment-framework
 Parameters:
   CommitInitialBootstrapContent:
     Type: String
-    Description: "If you want AWS CloudFormation to automatically make the initial commit into the Bootstrap AWS CodeCommit Repository for on your behalf, the commit will only be made if the master branch does not yet exist - Recommended for new deployments, can be left as True while updating"
+    Description: "If you want AWS CloudFormation to automatically make the initial commit into the Bootstrap AWS CodeCommit Repository for on your behalf, the commit will only be made if the master branch does not yet exist - can be left as true while updating"
     Default: true
     AllowedValues: [true, false]
   CrossAccountAccessRoleName:
@@ -27,27 +27,27 @@ Parameters:
     Type: String
     Default: OrganizationAccountAccessRole
   MainNotificationEndpoint:
-    Description: "The Email Address (Or Slack Channel, see docs) that will receive notifications in regards to the bootstrapping pipeline on the master account. Required only for initial setup, Can be left as blank while updating"
+    Description: "The Email Address/Slack Channel (see docs) that will receive notifications in regards to the bootstrapping pipeline on the master account, not required for updating."
     Type: String
     Default: ""
   DeploymentAccountName:
-    Description: "The Name of the centralized Deployment Account - only required if Deployment Account requires creation. Can be left as blank while updating"
+    Description: "The Name of the centralized Deployment Account - only required if Deployment Account requires creation, not required for updating."
     Type: String
     Default: ""
   DeploymentAccountEmailAddress:
-    Description: "The Email address associated with the Deployment Account, only required if Deployment Account requires creation. Can be left as blank while updating"
+    Description: "The Email address associated with the Deployment Account, only required if Deployment Account requires creation, not required for updating."
     Type: String
     Default: ""
   DeploymentAccountId:
-    Description: "The account number of the existing Deployment Account, only required if an existing account should be re-used. A deployment account will be created if this value is omitted. Required when updating ADF."
+    Description: "The account number of the existing Deployment Account, only required if an existing account should be re-used. A deployment account will be created if this value is omitted. Only required if using pre-existing AWS Account as Deployment Account, not required for updating."
     Type: String
     Default: ""
   DeploymentAccountMainRegion:
-    Description: "The region that will centrally hold all CodePipeline deployments. This would be considered your default ADF AWS Region"
+    Description: "The region that will centrally hold all CodePipeline deployments. This would be considered your default ADF AWS Region, not required for updating."
     Type: String
     Default: ""
   DeploymentAccountTargetRegions:
-    Description: "A List of regions that you may want to deploy resources (Applications, CloudFormation etc) into via CodePipeline (This can always be updated later - Required only for initial setup - eg us-west-1,eu-west-1)"
+    Description: "A List of regions that you may want to deploy resources (Applications, CloudFormation etc) into via CodePipeline (us-west-1,eu-west-1) This can always be updated later, not required for updating."
     Type: CommaDelimitedList
     Default: ""
   TerminationProtection:
@@ -195,7 +195,7 @@ Resources:
           DEPLOYMENT_ACCOUNT_BUCKET: !GetAtt SharedModulesBucketName.Value
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
           ORGANIZATION_ID: !GetAtt Organization.OrganizationId
-          ADF_VERSION: 1.0.79
+          ADF_VERSION: 1.0.85
       FunctionName: DetermineEventFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.7
@@ -215,7 +215,7 @@ Resources:
           DEPLOYMENT_ACCOUNT_BUCKET: !GetAtt SharedModulesBucketName.Value
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
           ORGANIZATION_ID: !GetAtt Organization.OrganizationId
-          ADF_VERSION: 1.0.79
+          ADF_VERSION: 1.0.85
       FunctionName: CrossAccountExecuteFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.7
@@ -250,7 +250,7 @@ Resources:
           S3_BUCKET_NAME: !Ref BootstrapTemplatesBucket
           TERMINATION_PROTECTION: !Ref TerminationProtection
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ADF_VERSION: 1.0.79
+          ADF_VERSION: 1.0.85
       FunctionName: MovedToRootActionFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.7
@@ -268,7 +268,7 @@ Resources:
           S3_BUCKET_NAME: !Ref BootstrapTemplatesBucket
           TERMINATION_PROTECTION: !Ref TerminationProtection
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ADF_VERSION: 1.0.79
+          ADF_VERSION: 1.0.85
       FunctionName: UpdateResourcePoliciesFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.7
@@ -406,7 +406,7 @@ Resources:
         Image: "aws/codebuild/standard:2.0"
         EnvironmentVariables:
           - Name: ADF_VERSION
-            Value: 1.0.79
+            Value: 1.0.85
           - Name: TERMINATION_PROTECTION
             Value: !Ref TerminationProtection
           - Name: PYTHONPATH
@@ -644,7 +644,7 @@ Resources:
     Condition: ShouldCommitInitialBootstrapContent
     Properties:
       ServiceToken: !GetAtt InitialCommitHandler.Arn
-      Version: 1.0.79
+      Version: 1.0.85
       RepositoryArn: !GetAtt CodeCommitRepository.Arn
       DirectoryName: bootstrap_repository
       DeploymentAccountRegion: !Ref DeploymentAccountMainRegion
@@ -809,7 +809,7 @@ Resources:
       Timeout: 300
 Outputs:
   ADFVersionNumber:
-    Value: 1.0.79
+    Value: 1.0.85
     Export:
       Name: "ADFVersionNumber"
   LayerArn:
