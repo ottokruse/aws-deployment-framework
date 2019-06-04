@@ -55,10 +55,6 @@ Parameters:
     Description: "Termination Protection can be passed in to enable Protection for all ADF base stacks"
     Default: false
     AllowedValues: [true, false]
-  DeploymentAccountBucket:
-    Description: "The S3 Bucket in the region that the deployment account will be hosted in - Will be created if not defined. Only required for initial setup"
-    Type: String
-    Default: ""
 Conditions:
   ShouldCommitInitialBootstrapContent: !Equals [true, !Ref CommitInitialBootstrapContent]
   ShouldCreateDeploymentAccount: !Equals [ !Ref DeploymentAccountId, "" ]
