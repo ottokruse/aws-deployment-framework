@@ -69,9 +69,7 @@ def update_(event: Mapping[str, Any], _context: Any) -> CloudFormationResponse:
     org_unit_name = event["ResourceProperties"]["OrganizationUnitName"]
     org_unit_id, created = ensure_org_unit(parent_id, org_unit_name)
     return PhysicalResource(org_unit_id, created).as_cfn_response()
-"""
-The Organization Unit Main that is called when ADF is installed to create the deployment OU
-"""
+
 
 @delete()
 def delete_(event: Mapping[str, Any], _context: Any):

@@ -1,0 +1,955 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Conditions:
+  ShouldCommitInitialBootstrapContent:
+    Fn::Equals:
+    - true
+    - Ref: CommitInitialBootstrapContent
+Description: ADF CloudFormation Initial Base Stack for the Master Account in the us-east-1
+  region.
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Author: AWS ADF Builders Team
+    Description: The AWS Deployment Framework (ADF) is an extensive and flexible framework
+      to manage and deploy resources across multiple AWS accounts and regions based
+      on AWS Organizations.
+    HomePageUrl: https://github.com/awslabs/aws-deployment-framework
+    Labels:
+    - adf
+    - aws-deployment-framework
+    LicenseUrl: s3://sam.us-east-1.otto-aws.com/3b83ef96387f14655fc854ddc3c6bd57
+    Name: aws-deployment-framework
+    ReadmeUrl: s3://sam.us-east-1.otto-aws.com/71af95c1fe29c5dd07c5e58c11999c78
+    SemanticVersion: 1.0.81
+    SourceCodeUrl: https://github.com/awslabs/aws-deployment-framework
+    SpdxLicenseId: Apache-2.0
+Outputs:
+  ADFVersionNumber:
+    Export:
+      Name: ADFVersionNumber
+    Value: 1.0.75
+  CodeCommitHttpURL:
+    Description: The CodeCommit HTTP Url
+    Export:
+      Name: BaseTemplatesRepoHttpURL
+    Value:
+      Fn::GetAtt:
+      - CodeCommitRepository
+      - CloneUrlHttp
+  CodeCommitSshURL:
+    Description: The CodeCommit SSH Url
+    Export:
+      Name: BaseTemplatesRepoSSHURL
+    Value:
+      Fn::GetAtt:
+      - CodeCommitRepository
+      - CloneUrlSsh
+  LayerArn:
+    Description: The Shared modules Lambda Layer Arn
+    Export:
+      Name: SharedLayerArn
+    Value:
+      Ref: LambdaLayerVersion
+Parameters:
+  CommitInitialBootstrapContent:
+    AllowedValues:
+    - true
+    - false
+    Default: true
+    Description: If you want AWS CloudFormation to automatically make the initial
+      commit into the Bootstrap AWS CodeCommit Repository for on your behalf, the
+      commit will only be made if the master branch does not yet exist - Recommended
+      for new deployments, can be left as True while updating
+    Type: String
+  ComputeType:
+    AllowedValues:
+    - BUILD_GENERAL1_SMALL
+    - BUILD_GENERAL1_MEDIUM
+    - BUILD_GENERAL1_LARGE
+    Default: BUILD_GENERAL1_SMALL
+    Description: The Compute Type to use for AWS CodeBuild for the bootstrap pipeline.
+    Type: String
+  CrossAccountAccessRoleName:
+    Default: OrganizationAccountAccessRole
+    Description: The Name of the Role that ADF will use to access other AWS Accounts
+      within your Organization and create base and update stacks.
+    Type: String
+  DeploymentAccountBucket:
+    Default: ''
+    Description: The S3 Bucket in the region that the deployment account will be hosted
+      in - Will be created if not defined. Required when updating ADF.
+    Type: String
+  DeploymentAccountEmailAddress:
+    Default: ''
+    Description: The Email address associated with the Deployment Account, only required
+      if Deployment Account requires creation. Can be left as blank while updating
+    Type: String
+  DeploymentAccountId:
+    Default: ''
+    Description: The account number of the existing Deployment Account, only required
+      if an existing account should be re-used. A deployment account will be created
+      if this value is omitted. Required when updating ADF.
+    Type: String
+  DeploymentAccountMainRegion:
+    Default: ''
+    Description: The region that will centrally hold all CodePipeline deployments.
+      This would be considered your default ADF AWS Region
+    Type: String
+  DeploymentAccountName:
+    Default: ''
+    Description: The Name of the centralized Deployment Account - only required if
+      Deployment Account requires creation. Can be left as blank while updating
+    Type: String
+  DeploymentAccountTargetRegions:
+    Default: ''
+    Description: A List of regions that you may want to deploy resources (Applications,
+      CloudFormation etc) into via CodePipeline (This can always be updated later
+      - Required only for initial setup - eg us-west-1,eu-west-1)
+    Type: CommaDelimitedList
+  MainNotificationEndpoint:
+    Default: ''
+    Description: The Email Address (Or Slack Channel, see docs) that will receive
+      notifications in regards to the bootstrapping pipeline on the master account.
+      Required only for initial setup, Can be left as blank while updating
+    Type: String
+  OrganizationId:
+    Default: ''
+    Description: The ID Of Your AWS Organization which will be used as conditional
+      boundary for access - Will be created if not defined. Can be left as blank while
+      updating.
+    Type: String
+  TerminationProtection:
+    AllowedValues:
+    - true
+    - false
+    Default: false
+    Description: Termination Protection can be passed in to enable Protection for
+      all ADF deployed stacks
+    Type: String
+Resources:
+  AccountHandler:
+    Properties:
+      CodeUri: s3://sam.us-east-1.otto-aws.com/5fa42cc1c7b0252712e4456be3150579
+      Description: ADF Lambda Function - Create Account
+      FunctionName: AccountHandler
+      Handler: handler.lambda_handler
+      Policies:
+      - Statement:
+        - Action:
+          - organizations:CreateAccount
+          - organizations:DescribeCreateAccountStatus
+          Effect: Allow
+          Resource: '*'
+        - Action: ssm:GetParameter
+          Effect: Allow
+          Resource:
+            Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/deployment_account_id
+        Version: '2012-10-17'
+      Runtime: python3.7
+      Timeout: 300
+    Type: AWS::Serverless::Function
+  BootstrapTemplatesBucket:
+    Properties:
+      AccessControl: BucketOwnerFullControl
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+    Type: AWS::S3::Bucket
+  BootstrapTemplatesBucketPolicy:
+    Properties:
+      Bucket:
+        Ref: BootstrapTemplatesBucket
+      PolicyDocument:
+        Statement:
+        - Action:
+          - s3:Get*
+          - s3:PutReplicationConfiguration
+          - s3:List*
+          Condition:
+            StringEquals:
+              aws:PrincipalOrgID:
+                Fn::GetAtt:
+                - Organization
+                - OrganizationId
+          Effect: Allow
+          Principal:
+            AWS: '*'
+          Resource:
+          - Fn::Sub: arn:aws:s3:::${BootstrapTemplatesBucket}
+          - Fn::Sub: arn:aws:s3:::${BootstrapTemplatesBucket}/*
+        - Action:
+          - s3:PutObject*
+          Effect: Allow
+          Principal:
+            AWS:
+              Ref: AWS::AccountId
+          Resource:
+          - Fn::Sub: arn:aws:s3:::${BootstrapTemplatesBucket}
+          - Fn::Sub: arn:aws:s3:::${BootstrapTemplatesBucket}/*
+    Type: AWS::S3::BucketPolicy
+  CloudWatchEventsRule:
+    Properties:
+      Description: Triggers StateMachine on Move OU
+      EventPattern:
+        detail:
+          eventName:
+          - MoveAccount
+          eventSource:
+          - organizations.amazonaws.com
+        source:
+        - aws.organizations
+      Targets:
+      - Arn:
+          Ref: StateMachine
+        Id: CreateStackLinkedAccountV1
+        RoleArn:
+          Fn::GetAtt:
+          - StatesExecutionRole
+          - Arn
+    Type: AWS::Events::Rule
+  CodeBuildPolicy:
+    Properties:
+      Description: Policy to allow codebuild to perform actions
+      PolicyDocument:
+        Statement:
+        - Action:
+          - codecommit:*
+          - codebuild:*
+          - organizations:AttachPolicy
+          - organizations:DetachPolicy
+          - organizations:DeletePolicy
+          - organizations:EnablePolicyType
+          - organizations:CreatePolicy
+          - organizations:UpdatePolicy
+          - organizations:ListAccounts
+          - organizations:ListAccountsForParent
+          - organizations:ListParents
+          - organizations:ListRoots
+          - organizations:ListPoliciesForTarget
+          - organizations:ListChildren
+          - organizations:ListPolicies
+          - organizations:DescribeAccount
+          - organizations:DescribePolicy
+          - organizations:DescribeOrganization
+          - organizations:DescribeOrganizationalUnit
+          - ssm:GetParameter
+          - ssm:GetParameters
+          - ssm:PutParameter
+          - iam:CreateRole
+          - iam:UpdateAssumeRolePolicy
+          - iam:CreatePolicy
+          - iam:GetRole
+          - iam:DeleteRole
+          - iam:PutRolePolicy
+          - iam:DeleteRolePolicy
+          - cloudformation:*
+          - sts:GetCallerIdentity
+          - logs:CreateLogGroup
+          - logs:CreateLogStream
+          - logs:PutLogEvents
+          - states:StartExecution
+          - states:Describe*
+          - s3:PutObject
+          - s3:GetBucketPolicy
+          - s3:GetObject
+          - s3:DeleteObject
+          - s3:ListBucket
+          - sns:*
+          - sts:assumeRole
+          Effect: Allow
+          Resource: '*'
+        Version: '2012-10-17'
+    Type: AWS::IAM::ManagedPolicy
+  CodeBuildProject:
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType:
+          Ref: ComputeType
+        EnvironmentVariables:
+        - Name: ADF_VERSION
+          Value: 1.0.75
+        - Name: TERMINATION_PROTECTION
+          Value:
+            Ref: TerminationProtection
+        - Name: PYTHONPATH
+          Value: ./adf-build/shared/python
+        - Name: S3_BUCKET
+          Value:
+            Ref: BootstrapTemplatesBucket
+        - Name: MASTER_ACCOUNT_ID
+          Value:
+            Ref: AWS::AccountId
+        - Name: DEPLOYMENT_ACCOUNT_BUCKET
+          Value:
+            Fn::GetAtt:
+            - SharedModulesBucketName
+            - Value
+        - Name: ORGANIZATION_ID
+          Value:
+            Fn::GetAtt:
+            - Organization
+            - OrganizationId
+        Image: aws/codebuild/standard:2.0
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      Name: aws-deployment-framework-base-templates
+      ServiceRole:
+        Ref: CodeBuildRole
+      Source:
+        BuildSpec:
+          Fn::Sub: "version: 0.2\nphases:\n  install:\n    runtime-versions:\n   \
+            \   python: 3.7\n      docker: 18\n  pre_build:\n    commands:\n     \
+            \ - apt-get update -qq\n      - pip install --upgrade pip --quiet\n  \
+            \    - pip install -r adf-build/requirements.txt --upgrade --quiet\n \
+            \     - pytest -vvv\n  build:\n    commands:\n      - sam build -t deployment/global.yml\n\
+            \      - sam package --output-template-file deployment/global.yml --s3-prefix\
+            \ deployment --s3-bucket $DEPLOYMENT_ACCOUNT_BUCKET\n      - aws s3 sync\
+            \ ./adf-build/shared s3://$DEPLOYMENT_ACCOUNT_BUCKET/adf-build/shared\
+            \ --quiet # Shared Modules to be used with AWS CodeBuild\n      - aws\
+            \ s3 sync . s3://$S3_BUCKET --quiet --delete # Base Templates\n      -\
+            \ python adf-build/main.py  # Updates config, updates (or creates) base\
+            \ stacks.\n"
+        Type: CODEPIPELINE
+      Tags:
+      - Key: Name
+        Value: aws-deployment-framework-base-templates
+      TimeoutInMinutes: 40
+    Type: AWS::CodeBuild::Project
+  CodeBuildRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - codebuild.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - Ref: CodeBuildPolicy
+      RoleName: adf-codebuild-role
+    Type: AWS::IAM::Role
+  CodeCommitPolicy:
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Action:
+          - codecommit:BatchGetRepositories
+          - codecommit:Get*
+          - codecommit:GitPull
+          - codecommit:List*
+          - codecommit:CancelUploadArchive
+          - codecommit:UploadArchive
+          - s3:Get
+          Effect: Allow
+          Resource: '*'
+        Version: '2012-10-17'
+      PolicyName: adf-organizations-codecommit-role-policy
+      Roles:
+      - Ref: CodeCommitRole
+    Type: AWS::IAM::Policy
+  CodeCommitRepository:
+    Properties:
+      RepositoryDescription:
+        Fn::Sub: CodeCommit Repo for all AWS Deployment Framework base in ${AWS::AccountId}
+      RepositoryName: aws-deployment-framework-bootstrap
+    Type: AWS::CodeCommit::Repository
+  CodeCommitRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: codecommit.amazonaws.com
+        Version: '2012-10-17'
+      Path: /
+      RoleName: adf-codecommit-role-base
+    Type: AWS::IAM::Role
+  CodePipeline:
+    Properties:
+      ArtifactStore:
+        Location:
+          Ref: BootstrapTemplatesBucket
+        Type: S3
+      Name: aws-deployment-framework-bootstrap-pipeline
+      RoleArn:
+        Fn::GetAtt:
+        - CodePipelineRole
+        - Arn
+      Stages:
+      - Actions:
+        - ActionTypeId:
+            Category: Source
+            Owner: AWS
+            Provider: CodeCommit
+            Version: '1'
+          Configuration:
+            BranchName: master
+            RepositoryName: aws-deployment-framework-bootstrap
+          Name: Source
+          OutputArtifacts:
+          - Name: TemplateSource
+          RunOrder: 1
+        Name: CodeCommit
+      - Actions:
+        - ActionTypeId:
+            Category: Build
+            Owner: AWS
+            Provider: CodeBuild
+            Version: '1'
+          Configuration:
+            ProjectName:
+              Ref: CodeBuildProject
+          InputArtifacts:
+          - Name: TemplateSource
+          Name: UploadAndUpdateBaseStacks
+          OutputArtifacts:
+          - Name: aws-deployment-framework-bootstrap-build
+          RunOrder: 1
+        Name: UploadAndUpdateBaseStacks
+    Type: AWS::CodePipeline::Pipeline
+  CodePipelineRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - codepipeline.amazonaws.com
+        Version: '2012-10-17'
+      Path: /
+      RoleName: adf-codepipeline-role
+    Type: AWS::IAM::Role
+  CodePipelineRolePolicy:
+    Properties:
+      Description: Policy to allow codepipeline to perform actions
+      PolicyDocument:
+        Statement:
+        - Action:
+          - codecommit:*
+          - codebuild:*
+          - s3:PutObject
+          - s3:GetBucketPolicy
+          - s3:GetObject
+          - s3:ListBucket
+          Effect: Allow
+          Resource: '*'
+        Version: '2012-10-17'
+      Roles:
+      - Ref: CodePipelineRole
+    Type: AWS::IAM::ManagedPolicy
+  CrossAccountExecuteFunction:
+    Properties:
+      CodeUri: s3://sam.us-east-1.otto-aws.com/975afae0ff1ea6debe84e1de37c51ec6
+      Description: ADF Lambda Function - CrossAccountExecuteFunction
+      Environment:
+        Variables:
+          ADF_VERSION: 1.0.75
+          DEPLOYMENT_ACCOUNT_BUCKET:
+            Fn::GetAtt:
+            - SharedModulesBucketName
+            - Value
+          MASTER_ACCOUNT_ID:
+            Ref: AWS::AccountId
+          ORGANIZATION_ID:
+            Fn::GetAtt:
+            - Organization
+            - OrganizationId
+          S3_BUCKET_NAME:
+            Ref: BootstrapTemplatesBucket
+          TERMINATION_PROTECTION:
+            Ref: TerminationProtection
+      FunctionName: CrossAccountExecuteFunction
+      Handler: account_bootstrap.lambda_handler
+      Layers:
+      - Ref: LambdaLayerVersion
+      Role:
+        Fn::GetAtt:
+        - LambdaRole
+        - Arn
+      Runtime: python3.7
+      Timeout: 300
+    Type: AWS::Serverless::Function
+  CrossRegionBucketHandler:
+    Properties:
+      CodeUri: s3://sam.us-east-1.otto-aws.com/344b8627e79e0072dd9a4d7e45526ccb
+      Description: ADF Lambda Function - Create Deployment Bucket in Main Deployment
+        Region
+      FunctionName: CrossRegionBucketHandler
+      Handler: handler.lambda_handler
+      Policies:
+      - Statement:
+        - Action: s3:CreateBucket
+          Effect: Allow
+          Resource: '*'
+        - Action:
+          - s3:DeleteBucket
+          - s3:PutEncryptionConfiguration
+          - s3:PutBucketPolicy
+          Effect: Allow
+          Resource: arn:aws:s3:::adf-shared-modules-*
+        - Action: ssm:GetParameter
+          Effect: Allow
+          Resource:
+          - Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/shared_modules_bucket
+          - Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/deployment_account_region
+        Version: '2012-10-17'
+      Runtime: python3.7
+      Timeout: 300
+    Type: AWS::Serverless::Function
+  DeploymentAccount:
+    DependsOn: Organization
+    Properties:
+      AccountEmailAddress:
+        Ref: DeploymentAccountEmailAddress
+      AccountName:
+        Ref: DeploymentAccountName
+      CrossAccountAccessRoleName:
+        Ref: CrossAccountAccessRoleName
+      ExistingAccountId:
+        Ref: DeploymentAccountId
+      ServiceToken:
+        Fn::GetAtt:
+        - AccountHandler
+        - Arn
+    Type: Custom::Account
+  DeploymentOrganizationUnit:
+    Properties:
+      OrganizationUnitName: deployment
+      ParentId:
+        Fn::GetAtt:
+        - Organization
+        - OrganizationRootId
+      ServiceToken:
+        Fn::GetAtt:
+        - OrganizationUnitHandler
+        - Arn
+    Type: Custom::OrganizationUnit
+  DetermineEventFunction:
+    Properties:
+      CodeUri: s3://sam.us-east-1.otto-aws.com/975afae0ff1ea6debe84e1de37c51ec6
+      Description: ADF Lambda Function - DetermineEvent
+      Environment:
+        Variables:
+          ADF_VERSION: 1.0.75
+          DEPLOYMENT_ACCOUNT_BUCKET:
+            Fn::GetAtt:
+            - SharedModulesBucketName
+            - Value
+          MASTER_ACCOUNT_ID:
+            Ref: AWS::AccountId
+          ORGANIZATION_ID:
+            Fn::GetAtt:
+            - Organization
+            - OrganizationId
+          S3_BUCKET_NAME:
+            Ref: BootstrapTemplatesBucket
+          TERMINATION_PROTECTION:
+            Ref: TerminationProtection
+      FunctionName: DetermineEventFunction
+      Handler: determine_event.lambda_handler
+      Layers:
+      - Ref: LambdaLayerVersion
+      Role:
+        Fn::GetAtt:
+        - LambdaRole
+        - Arn
+      Runtime: python3.7
+      Timeout: 300
+    Type: AWS::Serverless::Function
+  InitialCommit:
+    Condition: ShouldCommitInitialBootstrapContent
+    Properties:
+      DeploymentAccountRegion:
+        Ref: DeploymentAccountMainRegion
+      DirectoryName: bootstrap_repository
+      NotificationEndpoint:
+        Ref: MainNotificationEndpoint
+      RepositoryArn:
+        Fn::GetAtt:
+        - CodeCommitRepository
+        - Arn
+      ServiceToken:
+        Fn::GetAtt:
+        - InitialCommitHandler
+        - Arn
+      TargetRegions:
+        Ref: DeploymentAccountTargetRegions
+      Version: 1.0.75
+    Type: Custom::InitialCommit
+  InitialCommitHandler:
+    Condition: ShouldCommitInitialBootstrapContent
+    Properties:
+      CodeUri: s3://sam.us-east-1.otto-aws.com/2d14885fc04b36488aeb7a5eec2de221
+      Description: ADF Lambda Function - BootstrapCreateInitialCommitFunction
+      FunctionName: BootstrapCreateInitialCommitFunction
+      Handler: handler.lambda_handler
+      Policies:
+      - Statement:
+        - Action:
+          - codecommit:GetDifferences
+          - codecommit:CreateCommit
+          - codecommit:GetBranch
+          - codecommit:CreateBranch
+          - codecommit:CreatePullRequest
+          - codecommit:DeleteBranch
+          Effect: Allow
+          Resource:
+            Fn::GetAtt:
+            - CodeCommitRepository
+            - Arn
+        Version: '2012-10-17'
+      Runtime: python3.7
+      Timeout: 300
+    Type: AWS::Serverless::Function
+  LambdaLayerVersion:
+    Properties:
+      CompatibleRuntimes:
+      - python3.6
+      - python3.7
+      ContentUri: s3://sam.us-east-1.otto-aws.com/7f1eb438392f2fc4f8fa7a8039615229
+      Description: Shared Lambda Layer between master and deployment account
+      LayerName: shared_layer
+    Type: AWS::Serverless::LayerVersion
+  LambdaLayerVersionPermission:
+    Properties:
+      Action: lambda:GetLayerVersion
+      LayerVersionArn:
+        Ref: LambdaLayerVersion
+      OrganizationId:
+        Fn::GetAtt:
+        - Organization
+        - OrganizationId
+      Principal: '*'
+    Type: AWS::Lambda::LayerVersionPermission
+  LambdaPolicy:
+    Properties:
+      Description: Policy to allow Lambda to perform actions
+      PolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          - lambda:GetLayerVersion
+          - logs:CreateLogGroup
+          - logs:CreateLogStream
+          - logs:PutLogEvents
+          - organizations:DescribeOrganizationalUnit
+          - organizations:ListParents
+          - cloudformation:*
+          - iam:GetRole
+          - iam:PassRole
+          - iam:CreateRole
+          - iam:PutRolePolicy
+          - organizations:DescribeOrganization
+          - organizations:DescribeAccount
+          - ssm:*
+          - states:StartExecution
+          Effect: Allow
+          Resource: '*'
+        - Action: s3:ListBucket
+          Effect: Allow
+          Resource:
+            Fn::GetAtt:
+            - BootstrapTemplatesBucket
+            - Arn
+        - Action: s3:GetObject
+          Effect: Allow
+          Resource:
+            Fn::Join:
+            - ''
+            - - Fn::GetAtt:
+                - BootstrapTemplatesBucket
+                - Arn
+              - /*
+        Version: '2012-10-17'
+      Roles:
+      - Ref: LambdaRole
+    Type: AWS::IAM::ManagedPolicy
+  LambdaRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - states.amazonaws.com
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+    Type: AWS::IAM::Role
+  MovedToRootActionFunction:
+    Properties:
+      CodeUri: s3://sam.us-east-1.otto-aws.com/975afae0ff1ea6debe84e1de37c51ec6
+      Description: ADF Lambda Function - MovedToRootActionFunction
+      Environment:
+        Variables:
+          ADF_VERSION: 1.0.75
+          MASTER_ACCOUNT_ID:
+            Ref: AWS::AccountId
+          S3_BUCKET_NAME:
+            Ref: BootstrapTemplatesBucket
+          TERMINATION_PROTECTION:
+            Ref: TerminationProtection
+      FunctionName: MovedToRootActionFunction
+      Handler: moved_to_root.lambda_handler
+      Layers:
+      - Ref: LambdaLayerVersion
+      Role:
+        Fn::GetAtt:
+        - LambdaRole
+        - Arn
+      Runtime: python3.7
+      Timeout: 900
+    Type: AWS::Serverless::Function
+  Organization:
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+        - OrganizationHandler
+        - Arn
+    Type: Custom::Organization
+  OrganizationHandler:
+    Properties:
+      CodeUri: s3://sam.us-east-1.otto-aws.com/aa9afb090d4c9cf86f70556e1583f2a2
+      Description: ADF Lambda Function - Enable AWS Organizations
+      FunctionName: AwsOrganizationsHandler
+      Handler: handler.lambda_handler
+      Policies:
+      - Statement:
+        - Action:
+          - organizations:CreateOrganization
+          - organizations:DescribeOrganization
+          - organizations:DeleteOrganization
+          - organizations:ListRoots
+          Effect: Allow
+          Resource: '*'
+        - Action: iam:CreateServiceLinkedRole
+          Effect: Allow
+          Resource: arn:aws:iam::*:role/aws-service-role/*
+        Version: '2012-10-17'
+      Runtime: python3.7
+      Timeout: 300
+    Type: AWS::Serverless::Function
+  OrganizationUnitHandler:
+    Properties:
+      CodeUri: s3://sam.us-east-1.otto-aws.com/e14891f683cd20d4ceffe5759affaa2d
+      Description: ADF Lambda Function - Create Organization Unit
+      FunctionName: OrganizationUnitHandler
+      Handler: handler.lambda_handler
+      Policies:
+      - Statement:
+        - Action:
+          - organizations:CreateOrganizationalUnit
+          - organizations:DeleteOrganizationalUnit
+          - organizations:ListOrganizationalUnitsForParent
+          Effect: Allow
+          Resource: '*'
+        Version: '2012-10-17'
+      Runtime: python3.7
+      Timeout: 300
+    Type: AWS::Serverless::Function
+  RoleStackDeploymentFunction:
+    Properties:
+      CodeUri: s3://sam.us-east-1.otto-aws.com/975afae0ff1ea6debe84e1de37c51ec6
+      Description: ADF Lambda Function - RoleStackDeploymentFunction
+      Environment:
+        Variables:
+          MASTER_ACCOUNT_ID:
+            Ref: AWS::AccountId
+          S3_BUCKET_NAME:
+            Ref: BootstrapTemplatesBucket
+          TERMINATION_PROTECTION:
+            Ref: TerminationProtection
+      FunctionName: RoleStackDeploymentFunction
+      Handler: deployment_account_config.lambda_handler
+      Layers:
+      - Ref: LambdaLayerVersion
+      Role:
+        Fn::GetAtt:
+        - LambdaRole
+        - Arn
+      Runtime: python3.7
+      Timeout: 300
+    Type: AWS::Serverless::Function
+  SharedModulesBucket:
+    Properties:
+      BucketNamePrefix:
+        Fn::Sub: adf-shared-modules-${DeploymentAccountMainRegion}
+      PolicyDocument:
+        Statement:
+        - Action:
+          - s3:Get*
+          - s3:List*
+          Effect: Allow
+          Principal:
+            AWS:
+            - Fn::Join:
+              - ''
+              - - 'arn:aws:iam::'
+                - Fn::GetAtt:
+                  - DeploymentAccount
+                  - AccountId
+                - :root
+            Service:
+            - codebuild.amazonaws.com
+            - lambda.amazonaws.com
+            - cloudformation.amazonaws.com
+      Region:
+        Ref: DeploymentAccountMainRegion
+      ServiceToken:
+        Fn::GetAtt:
+        - CrossRegionBucketHandler
+        - Arn
+    Type: Custom::CrossRegionBucket
+  SharedModulesBucketName:
+    Properties:
+      Description: DO NOT EDIT - Used by The AWS Deployment Framework
+      Name: shared_modules_bucket
+      Type: String
+      Value:
+        Fn::GetAtt:
+        - SharedModulesBucket
+        - BucketName
+    Type: AWS::SSM::Parameter
+  StackWaiterFunction:
+    Properties:
+      CodeUri: s3://sam.us-east-1.otto-aws.com/975afae0ff1ea6debe84e1de37c51ec6
+      Description: ADF Lambda Function - StackWaiterFunction
+      Environment:
+        Variables:
+          MASTER_ACCOUNT_ID:
+            Ref: AWS::AccountId
+          ORGANIZATION_ID:
+            Fn::GetAtt:
+            - Organization
+            - OrganizationId
+          S3_BUCKET_NAME:
+            Ref: BootstrapTemplatesBucket
+          TERMINATION_PROTECTION:
+            Ref: TerminationProtection
+      FunctionName: StackWaiter
+      Handler: wait_until_complete.lambda_handler
+      Layers:
+      - Ref: LambdaLayerVersion
+      Role:
+        Fn::GetAtt:
+        - LambdaRole
+        - Arn
+      Runtime: python3.7
+      Timeout: 300
+    Type: AWS::Serverless::Function
+  StateMachine:
+    Properties:
+      DefinitionString:
+        Fn::Sub: "{\n    \"Comment\": \"ADF Account Bootstrapping Process\",\n   \
+          \ \"StartAt\": \"DetermineEvent\",\n    \"States\": {\n        \"DetermineEvent\"\
+          : {\n            \"Type\": \"Task\",\n            \"Resource\": \"${DetermineEventFunction.Arn}\"\
+          ,\n            \"Next\": \"MovedToRootOrProtected?\",\n            \"TimeoutSeconds\"\
+          : 300\n        },\n        \"MovedToRootOrProtected?\": {\n            \"\
+          Type\": \"Choice\",\n            \"Choices\": [{\n                    \"\
+          Variable\": \"$.moved_to_protected\",\n                    \"NumericEquals\"\
+          : 1,\n                    \"Next\": \"ExecuteDeploymentAccountStateMachine\"\
+          \n                },\n                {\n                    \"Variable\"\
+          : \"$.moved_to_root\",\n                    \"NumericEquals\": 1,\n    \
+          \                \"Next\": \"MovedToRootAction\"\n                }\n  \
+          \          ],\n            \"Default\": \"CreateOrUpdateBaseStack\"\n  \
+          \      },\n        \"CreateOrUpdateBaseStack\": {\n            \"Type\"\
+          : \"Task\",\n            \"Resource\": \"${CrossAccountExecuteFunction.Arn}\"\
+          ,\n            \"Next\": \"WaitUntilBootstrapComplete\",\n            \"\
+          Catch\": [{\n                \"ErrorEquals\": [\"States.ALL\"],\n      \
+          \          \"Next\": \"ExecuteDeploymentAccountStateMachine\",\n       \
+          \         \"ResultPath\": \"$.error\"\n            }],\n            \"TimeoutSeconds\"\
+          : 300\n        },\n        \"MovedToRootAction\": {\n            \"Type\"\
+          : \"Task\",\n            \"Resource\": \"${MovedToRootActionFunction.Arn}\"\
+          ,\n            \"Retry\": [{\n                \"ErrorEquals\": [\"RetryError\"\
+          ],\n                \"IntervalSeconds\": 10,\n                \"BackoffRate\"\
+          : 1.0,\n                \"MaxAttempts\": 20\n            }],\n         \
+          \   \"Catch\": [{\n                \"ErrorEquals\": [\"States.ALL\"],\n\
+          \                \"Next\": \"ExecuteDeploymentAccountStateMachine\",\n \
+          \               \"ResultPath\": \"$.error\"\n            }],\n         \
+          \   \"Next\": \"ExecuteDeploymentAccountStateMachine\",\n            \"\
+          TimeoutSeconds\": 900\n        },\n        \"WaitUntilBootstrapComplete\"\
+          : {\n            \"Type\": \"Task\",\n            \"Resource\": \"${StackWaiterFunction.Arn}\"\
+          ,\n            \"Retry\": [{\n                \"ErrorEquals\": [\"RetryError\"\
+          ],\n                \"IntervalSeconds\": 10,\n                \"BackoffRate\"\
+          : 1.0,\n                \"MaxAttempts\": 500\n            }],\n        \
+          \    \"Catch\": [{\n                \"ErrorEquals\": [\"States.ALL\"],\n\
+          \                \"Next\": \"ExecuteDeploymentAccountStateMachine\",\n \
+          \               \"ResultPath\": \"$.error\"\n            }],\n         \
+          \   \"Next\": \"DeploymentAccount?\",\n            \"TimeoutSeconds\": 900\n\
+          \        },\n        \"DeploymentAccount?\": {\n            \"Type\": \"\
+          Choice\",\n            \"Choices\": [{\n                \"Variable\": \"\
+          $.is_deployment_account\",\n                \"NumericEquals\": 1,\n    \
+          \            \"Next\": \"DeploymentAccountConfig\"\n            }],\n  \
+          \          \"Default\": \"ExecuteDeploymentAccountStateMachine\"\n     \
+          \   },\n        \"DeploymentAccountConfig\": {\n            \"Type\": \"\
+          Task\",\n            \"Resource\": \"${RoleStackDeploymentFunction.Arn}\"\
+          ,\n            \"End\": true,\n            \"TimeoutSeconds\": 900\n   \
+          \     },\n        \"ExecuteDeploymentAccountStateMachine\": {\n        \
+          \    \"Type\": \"Task\",\n            \"Resource\": \"${UpdateResourcePoliciesFunction.Arn}\"\
+          ,\n            \"End\": true,\n            \"TimeoutSeconds\": 900\n   \
+          \     }\n    }\n}"
+      RoleArn:
+        Fn::GetAtt:
+        - StatesExecutionRole
+        - Arn
+    Type: AWS::StepFunctions::StateMachine
+  StatesExecutionRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - states.amazonaws.com
+            - events.amazonaws.com
+            - lambda.amazonaws.com
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - states:StartExecution
+            - lambda:InvokeFunction
+            Effect: Allow
+            Resource: '*'
+          Version: '2012-10-17'
+        PolicyName: adf-state-machine-role-policy
+    Type: AWS::IAM::Role
+  UpdateResourcePoliciesFunction:
+    Properties:
+      CodeUri: s3://sam.us-east-1.otto-aws.com/975afae0ff1ea6debe84e1de37c51ec6
+      Description: ADF Lambda Function - UpdateResourcePoliciesFunction
+      Environment:
+        Variables:
+          ADF_VERSION: 1.0.75
+          MASTER_ACCOUNT_ID:
+            Ref: AWS::AccountId
+          S3_BUCKET_NAME:
+            Ref: BootstrapTemplatesBucket
+          TERMINATION_PROTECTION:
+            Ref: TerminationProtection
+      FunctionName: UpdateResourcePoliciesFunction
+      Handler: generic_account_config.lambda_handler
+      Layers:
+      - Ref: LambdaLayerVersion
+      Role:
+        Fn::GetAtt:
+        - LambdaRole
+        - Arn
+      Runtime: python3.7
+      Timeout: 300
+    Type: AWS::Serverless::Function
+Transform: AWS::Serverless-2016-10-31

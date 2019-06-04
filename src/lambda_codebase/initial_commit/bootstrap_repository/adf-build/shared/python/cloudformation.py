@@ -217,7 +217,7 @@ class CloudFormation(StackProperties):
     def _update_stack_termination_protection(self):
         try:
             return self.client.update_termination_protection(
-                EnableTerminationProtection=True if STACK_TERMINATION_PROTECTION == "True" else False,
+                EnableTerminationProtection=STACK_TERMINATION_PROTECTION == "True",
                 StackName=self.stack_name
             )
         except ClientError:
