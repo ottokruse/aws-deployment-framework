@@ -8,10 +8,6 @@ Conditions:
     Fn::Equals:
     - Ref: DeploymentAccountId
     - ''
-  ShouldCreateDeploymentBucket:
-    Fn::Equals:
-    - Ref: DeploymentAccountBucket
-    - ''
   ShouldCreateOrganization:
     Fn::Equals:
     - Ref: OrganizationId
@@ -28,9 +24,9 @@ Metadata:
     Labels:
     - adf
     - aws-deployment-framework
-    LicenseUrl: s3://adf-base-s3-bucket-us-east-1/3b83ef96387f14655fc854ddc3c6bd57
+    LicenseUrl: s3://sam.us-east-1.otto-aws.com/3b83ef96387f14655fc854ddc3c6bd57
     Name: aws-deployment-framework
-    ReadmeUrl: s3://adf-base-s3-bucket-us-east-1/71af95c1fe29c5dd07c5e58c11999c78
+    ReadmeUrl: s3://sam.us-east-1.otto-aws.com/71af95c1fe29c5dd07c5e58c11999c78
     SemanticVersion: 1.0.75
     SourceCodeUrl: https://github.com/awslabs/aws-deployment-framework
     SpdxLicenseId: Apache-2.0
@@ -141,7 +137,7 @@ Resources:
   AccountHandler:
     Condition: ShouldCreateDeploymentAccount
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/79006636c6b5a86cf57be4ae16bbd145
+      CodeUri: s3://sam.us-east-1.otto-aws.com/a9f034aa0087bb57b79b5b92ab7d5893
       Description: ADF Lambda Function - Create Account
       FunctionName: AccountHandler
       Handler: handler.lambda_handler
@@ -294,12 +290,9 @@ Resources:
             Ref: AWS::AccountId
         - Name: DEPLOYMENT_ACCOUNT_BUCKET
           Value:
-            Fn::If:
-            - ShouldCreateDeploymentBucket
-            - Fn::GetAtt:
-              - SharedModulesBucket
-              - BucketName
-            - Ref: DeploymentAccountBucket
+            Fn::GetAtt:
+            - SharedModulesBucketName
+            - Value
         - Name: ORGANIZATION_ID
           Value:
             Fn::GetAtt:
@@ -461,18 +454,15 @@ Resources:
     Type: AWS::IAM::ManagedPolicy
   CrossAccountExecuteFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/53c905bbb9547699c5d98b9a3e6dd721
+      CodeUri: s3://sam.us-east-1.otto-aws.com/24226ece48fdd298a57de43ae110eaa9
       Description: ADF Lambda Function - CrossAccountExecuteFunction
       Environment:
         Variables:
           ADF_VERSION: 1.0.75
           DEPLOYMENT_ACCOUNT_BUCKET:
-            Fn::If:
-            - ShouldCreateDeploymentBucket
-            - Fn::GetAtt:
-              - SharedModulesBucket
-              - BucketName
-            - Ref: DeploymentAccountBucket
+            Fn::GetAtt:
+            - SharedModulesBucketName
+            - Value
           MASTER_ACCOUNT_ID:
             Ref: AWS::AccountId
           ORGANIZATION_ID:
@@ -495,9 +485,8 @@ Resources:
       Timeout: 300
     Type: AWS::Serverless::Function
   CrossRegionBucketHandler:
-    Condition: ShouldCreateDeploymentBucket
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/2aa9619029a735b42c10974609130510
+      CodeUri: s3://sam.us-east-1.otto-aws.com/f22894dab6b18a8d1e64810f18eeb698
       Description: ADF Lambda Function - Create Deployment Bucket in Main Deployment
         Region
       FunctionName: CrossRegionBucketHandler
@@ -513,6 +502,10 @@ Resources:
           - s3:PutBucketPolicy
           Effect: Allow
           Resource: arn:aws:s3:::adf-shared-modules-*
+        - Action: ssm:GetParameter
+          Effect: Allow
+          Resource:
+            Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/shared_modules_bucket
         Version: '2012-10-17'
       Runtime: python3.7
       Timeout: 300
@@ -546,18 +539,15 @@ Resources:
     Type: Custom::OrganizationUnit
   DetermineEventFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/53c905bbb9547699c5d98b9a3e6dd721
+      CodeUri: s3://sam.us-east-1.otto-aws.com/24226ece48fdd298a57de43ae110eaa9
       Description: ADF Lambda Function - DetermineEvent
       Environment:
         Variables:
           ADF_VERSION: 1.0.75
           DEPLOYMENT_ACCOUNT_BUCKET:
-            Fn::If:
-            - ShouldCreateDeploymentBucket
-            - Fn::GetAtt:
-              - SharedModulesBucket
-              - BucketName
-            - Ref: DeploymentAccountBucket
+            Fn::GetAtt:
+            - SharedModulesBucketName
+            - Value
           MASTER_ACCOUNT_ID:
             Ref: AWS::AccountId
           ORGANIZATION_ID:
@@ -602,7 +592,7 @@ Resources:
   InitialCommitHandler:
     Condition: ShouldCommitInitialBootstrapContent
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/6aaffa8e8c6f5961a000e95f75048ca1
+      CodeUri: s3://sam.us-east-1.otto-aws.com/c69e9251c14bf60f6bfc0367add4e0aa
       Description: ADF Lambda Function - BootstrapCreateInitialCommitFunction
       FunctionName: BootstrapCreateInitialCommitFunction
       Handler: handler.lambda_handler
@@ -629,7 +619,7 @@ Resources:
       CompatibleRuntimes:
       - python3.6
       - python3.7
-      ContentUri: s3://adf-base-s3-bucket-us-east-1/f655fa01cb838e3ccc5b1ea02270a50d
+      ContentUri: s3://sam.us-east-1.otto-aws.com/b3b941f03e394638cf82e6c83faae28b
       Description: Shared Lambda Layer between master and deployment account
       LayerName: shared_layer
     Type: AWS::Serverless::LayerVersion
@@ -702,7 +692,7 @@ Resources:
     Type: AWS::IAM::Role
   MovedToRootActionFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/53c905bbb9547699c5d98b9a3e6dd721
+      CodeUri: s3://sam.us-east-1.otto-aws.com/24226ece48fdd298a57de43ae110eaa9
       Description: ADF Lambda Function - MovedToRootActionFunction
       Environment:
         Variables:
@@ -733,7 +723,7 @@ Resources:
     Type: Custom::Organization
   OrganizationHandler:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/fbaed26c8dd602b3742b6d58bc52e5e0
+      CodeUri: s3://sam.us-east-1.otto-aws.com/20182360869c6300ad2ad20ee0c39c78
       Description: ADF Lambda Function - Enable AWS Organizations
       FunctionName: AwsOrganizationsHandler
       Handler: handler.lambda_handler
@@ -755,7 +745,7 @@ Resources:
     Type: AWS::Serverless::Function
   OrganizationUnitHandler:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/decfb1df32888b773a01443ff36e8e74
+      CodeUri: s3://sam.us-east-1.otto-aws.com/11794476acc7de6b271e92e356d9ae7b
       Description: ADF Lambda Function - Create Organization Unit
       FunctionName: OrganizationUnitHandler
       Handler: handler.lambda_handler
@@ -773,7 +763,7 @@ Resources:
     Type: AWS::Serverless::Function
   RoleStackDeploymentFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/53c905bbb9547699c5d98b9a3e6dd721
+      CodeUri: s3://sam.us-east-1.otto-aws.com/24226ece48fdd298a57de43ae110eaa9
       Description: ADF Lambda Function - RoleStackDeploymentFunction
       Environment:
         Variables:
@@ -795,7 +785,6 @@ Resources:
       Timeout: 300
     Type: AWS::Serverless::Function
   SharedModulesBucket:
-    Condition: ShouldCreateDeploymentBucket
     Properties:
       BucketNamePrefix:
         Fn::Sub: adf-shared-modules-${DeploymentAccountMainRegion}
@@ -828,9 +817,19 @@ Resources:
         - CrossRegionBucketHandler
         - Arn
     Type: Custom::CrossRegionBucket
+  SharedModulesBucketName:
+    Properties:
+      Description: DO NOT EDIT - Used by The AWS Deployment Framework
+      Name: shared_modules_bucket
+      Type: String
+      Value:
+        Fn::GetAtt:
+        - SharedModulesBucket
+        - BucketName
+    Type: AWS::SSM::Parameter
   StackWaiterFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/53c905bbb9547699c5d98b9a3e6dd721
+      CodeUri: s3://sam.us-east-1.otto-aws.com/24226ece48fdd298a57de43ae110eaa9
       Description: ADF Lambda Function - StackWaiterFunction
       Environment:
         Variables:
@@ -937,7 +936,7 @@ Resources:
     Type: AWS::IAM::Role
   UpdateResourcePoliciesFunction:
     Properties:
-      CodeUri: s3://adf-base-s3-bucket-us-east-1/53c905bbb9547699c5d98b9a3e6dd721
+      CodeUri: s3://sam.us-east-1.otto-aws.com/24226ece48fdd298a57de43ae110eaa9
       Description: ADF Lambda Function - UpdateResourcePoliciesFunction
       Environment:
         Variables:
