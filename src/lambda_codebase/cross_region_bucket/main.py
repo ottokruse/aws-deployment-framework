@@ -54,7 +54,7 @@ class PhysicalResource:
     def from_json(cls, json_string: PhysicalResourceId) -> "PhysicalResource":
         try:
             return cls(**json.loads(json_string))
-        except json.JSONDecodeError as err:
+        except json.JSONDecodeError:
             raise InvalidPhysicalResourceIdError from None
 
     def as_cfn_response(self) -> CloudFormationResponse:
@@ -118,7 +118,7 @@ def delete_(event: Mapping[str, Any], _context: Any) -> None:
 
 
 def determine_region(event: Mapping[str, Any]):
-    if "Region" in event["ResourceProperties"]:
+    if "Region" in event["ResourceProperties"] and event["ResourceProperties"]["Region"]:
         return event["ResourceProperties"]["Region"]
     try:
         get_parameter = SSM_CLIENT.get_parameter(Name="deployment_account_region")
