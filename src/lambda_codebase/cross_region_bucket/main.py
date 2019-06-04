@@ -76,6 +76,7 @@ def create_(event: Mapping[str, Any], _context: Any) -> CloudFormationResponse:
 
 @update()
 def update_(event: Mapping[str, Any], _context: Any) -> CloudFormationResponse:
+    previously_created = PhysicalResource.from_json(event["PhysicalResourceId"]).created
     region = event["ResourceProperties"]["Region"]
     policy = event["ResourceProperties"].get("PolicyDocument")
     bucket_name_prefix = event["ResourceProperties"]["BucketNamePrefix"]
@@ -83,7 +84,7 @@ def update_(event: Mapping[str, Any], _context: Any) -> CloudFormationResponse:
     ensure_bucket_encryption(bucket_name, region)
     if policy:
         ensure_bucket_policy(bucket_name, region, policy)
-    return PhysicalResource(region, bucket_name, created).as_cfn_response()
+    return PhysicalResource(region, bucket_name, created or previously_created).as_cfn_response()
 
 
 @delete()
