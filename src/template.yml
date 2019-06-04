@@ -14,11 +14,7 @@ Metadata:
     ReadmeUrl: ../README.md
     Labels: ['adf', 'aws-deployment-framework']
     HomePageUrl: https://github.com/awslabs/aws-deployment-framework
-<<<<<<< HEAD
-    SemanticVersion: 1.0.79
-=======
     SemanticVersion: 1.0.81
->>>>>>> 11936fdaac73854433563c6d5d49d16156d4e5ff
     SourceCodeUrl: https://github.com/awslabs/aws-deployment-framework
 Parameters:
   CommitInitialBootstrapContent:
@@ -61,10 +57,6 @@ Parameters:
     AllowedValues: [true, false]
 Conditions:
   ShouldCommitInitialBootstrapContent: !Equals [true, !Ref CommitInitialBootstrapContent]
-<<<<<<< HEAD
-  ShouldCreateDeploymentAccount: !Equals [ !Ref DeploymentAccountId, "" ]
-=======
->>>>>>> 11936fdaac73854433563c6d5d49d16156d4e5ff
 Resources:
   BootstrapTemplatesBucketPolicy:
     Type: AWS::S3::BucketPolicy
