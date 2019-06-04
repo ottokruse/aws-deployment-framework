@@ -223,7 +223,7 @@ class CloudFormation(StackProperties):
         except ClientError:
             LOGGER.info(
                 '%s - Attempted to Update Stack Termination Protection: %s, It is not required.',
-                self.stack_name, self.account_id)
+                self.account_id, self.stack_name, )
             pass
 
     def _delete_change_set(self):
@@ -235,7 +235,7 @@ class CloudFormation(StackProperties):
         except ClientError:
             LOGGER.info(
                 '%s - Attempted to Delete Stack: %s, it did not exist.',
-                self.stack_name, self.account_id)
+                self.account_id, self.stack_name)
             pass
 
     def _execute_change_set(self, waiter):

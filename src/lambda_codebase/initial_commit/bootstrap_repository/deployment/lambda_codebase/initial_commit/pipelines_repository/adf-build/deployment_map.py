@@ -55,11 +55,10 @@ class DeploymentMap:
             with open(self.map_path, 'r') as stream:
                 return yaml.load(stream, Loader=yaml.FullLoader)
         except FileNotFoundError:
-            LOGGER.exception('Cannot Create Deployment Pipelines as there '
-                             'is no deployment_map.yml file in the repository. '
-                             'If this is your first time using ADF please see read the user guide'
-                             )
-            raise
+            LOGGER.error('Cannot Create Deployment Pipelines as there '
+                         'is no deployment_map.yml file in the repository. '
+                         'If this is your first time using ADF please see read the user guide'
+                        , exc_info=True)
 
     def _validate_deployment_map(self):
         """

@@ -14,7 +14,7 @@ Metadata:
     ReadmeUrl: ../README.md
     Labels: ['adf', 'aws-deployment-framework']
     HomePageUrl: https://github.com/awslabs/aws-deployment-framework
-    SemanticVersion: 1.0.76
+    SemanticVersion: 1.0.79
     SourceCodeUrl: https://github.com/awslabs/aws-deployment-framework
 Parameters:
   CommitInitialBootstrapContent:
@@ -52,29 +52,16 @@ Parameters:
     Default: ""
   TerminationProtection:
     Type: String
-    Description: "Termination Protection can be passed in to enable Protection for all ADF deployed stacks"
+    Description: "Termination Protection can be passed in to enable Protection for all ADF base stacks"
     Default: false
     AllowedValues: [true, false]
-  ComputeType:
-    Description: The Compute Type to use for AWS CodeBuild for the bootstrap pipeline.
-    Type: String
-    Default: "BUILD_GENERAL1_SMALL"
-    AllowedValues:
-      - "BUILD_GENERAL1_SMALL"  #3 GB memory, 2 vCPU
-      - "BUILD_GENERAL1_MEDIUM" #7 GB memory, 4 vCPU
-      - "BUILD_GENERAL1_LARGE"  #15 GB memory, 8 vCPU
   DeploymentAccountBucket:
-    Description: "The S3 Bucket in the region that the deployment account will be hosted in - Will be created if not defined. Required when updating ADF."
-    Type: String
-    Default: ""
-  OrganizationId:
-    Description: The ID Of Your AWS Organization which will be used as conditional boundary for access - Will be created if not defined. Can be left as blank while updating.
+    Description: "The S3 Bucket in the region that the deployment account will be hosted in - Will be created if not defined. Only required for initial setup"
     Type: String
     Default: ""
 Conditions:
   ShouldCommitInitialBootstrapContent: !Equals [true, !Ref CommitInitialBootstrapContent]
   ShouldCreateDeploymentAccount: !Equals [ !Ref DeploymentAccountId, "" ]
-  ShouldCreateOrganization: !Equals [ !Ref OrganizationId, "" ]
 Resources:
   BootstrapTemplatesBucketPolicy:
     Type: AWS::S3::BucketPolicy
@@ -213,7 +200,7 @@ Resources:
           DEPLOYMENT_ACCOUNT_BUCKET: !GetAtt SharedModulesBucketName.Value
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
           ORGANIZATION_ID: !GetAtt Organization.OrganizationId
-          ADF_VERSION: 1.0.76
+          ADF_VERSION: 1.0.79
       FunctionName: DetermineEventFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.7
@@ -233,7 +220,7 @@ Resources:
           DEPLOYMENT_ACCOUNT_BUCKET: !GetAtt SharedModulesBucketName.Value
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
           ORGANIZATION_ID: !GetAtt Organization.OrganizationId
-          ADF_VERSION: 1.0.76
+          ADF_VERSION: 1.0.79
       FunctionName: CrossAccountExecuteFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.7
@@ -268,7 +255,7 @@ Resources:
           S3_BUCKET_NAME: !Ref BootstrapTemplatesBucket
           TERMINATION_PROTECTION: !Ref TerminationProtection
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ADF_VERSION: 1.0.76
+          ADF_VERSION: 1.0.79
       FunctionName: MovedToRootActionFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.7
@@ -286,7 +273,7 @@ Resources:
           S3_BUCKET_NAME: !Ref BootstrapTemplatesBucket
           TERMINATION_PROTECTION: !Ref TerminationProtection
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ADF_VERSION: 1.0.76
+          ADF_VERSION: 1.0.79
       FunctionName: UpdateResourcePoliciesFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.7
@@ -419,12 +406,12 @@ Resources:
       Artifacts:
         Type: CODEPIPELINE
       Environment:
-        ComputeType: !Ref ComputeType
+        ComputeType: "BUILD_GENERAL1_SMALL"
         PrivilegedMode: true
         Image: "aws/codebuild/standard:2.0"
         EnvironmentVariables:
           - Name: ADF_VERSION
-            Value: 1.0.76
+            Value: 1.0.79
           - Name: TERMINATION_PROTECTION
             Value: !Ref TerminationProtection
           - Name: PYTHONPATH
@@ -662,7 +649,7 @@ Resources:
     Condition: ShouldCommitInitialBootstrapContent
     Properties:
       ServiceToken: !GetAtt InitialCommitHandler.Arn
-      Version: 1.0.76
+      Version: 1.0.79
       RepositoryArn: !GetAtt CodeCommitRepository.Arn
       DirectoryName: bootstrap_repository
       DeploymentAccountRegion: !Ref DeploymentAccountMainRegion
@@ -826,7 +813,7 @@ Resources:
       Timeout: 300
 Outputs:
   ADFVersionNumber:
-    Value: 1.0.76
+    Value: 1.0.79
     Export:
       Name: "ADFVersionNumber"
   LayerArn:
