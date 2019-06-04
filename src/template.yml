@@ -67,10 +67,6 @@ Parameters:
     Description: "The S3 Bucket in the region that the deployment account will be hosted in - Will be created if not defined. Required when updating ADF."
     Type: String
     Default: ""
-  OrganizationId:
-    Description: The ID Of Your AWS Organization which will be used as conditional boundary for access - Will be created if not defined. Can be left as blank while updating.
-    Type: String
-    Default: ""
 Conditions:
   ShouldCommitInitialBootstrapContent: !Equals [true, !Ref CommitInitialBootstrapContent]
 Resources:
