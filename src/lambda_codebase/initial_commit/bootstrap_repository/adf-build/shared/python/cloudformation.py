@@ -117,7 +117,7 @@ class CloudFormation(StackProperties):
         try:
             return self.client.validate_template(TemplateURL=self.template_url)
         except ClientError as error:
-            raise InvalidTemplateError from error
+            raise InvalidTemplateError("{0}: {1}".format(self.template_url, error)) from None
 
     def _wait_stack(self, waiter_type):
         waiter = self.client.get_waiter(waiter_type)
