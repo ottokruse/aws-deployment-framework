@@ -58,7 +58,7 @@ def ensure_generic_account_can_be_setup(sts, config, account_id):
             'base_update'
         )
     except ClientError as error:
-        raise GenericAccountConfigureError(error)
+        raise GenericAccountConfigureError from error
 
 
 def update_deployment_account_output_parameters(
@@ -116,6 +116,9 @@ def prepare_deployment_account(sts, deployment_account_id, config):
     )
     deployment_account_parameter_store.put_parameter(
         'adf_version', os.environ["ADF_VERSION"]
+    )
+    deployment_account_parameter_store.put_parameter(
+        'adf_log_level', os.environ["ADF_LOG_LEVEL"]
     )
     deployment_account_parameter_store.put_parameter(
         'deployment_account_bucket', DEPLOYMENT_ACCOUNT_S3_BUCKET_NAME

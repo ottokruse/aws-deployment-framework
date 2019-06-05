@@ -5,7 +5,7 @@
 """
 
 import logging
-
+import os
 
 def configure_logger(logger_name):
     """Configures a generic logger which can be imported and used as needed
@@ -13,7 +13,7 @@ def configure_logger(logger_name):
 
     # Create logger and define INFO as the log level
     logger = logging.getLogger(logger_name)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(os.environ.get("ADF_LOG_LEVEL", logging.INFO))
     logger.propagate = False
 
     # Define our logging formatter

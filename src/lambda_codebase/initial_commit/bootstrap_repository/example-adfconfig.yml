@@ -15,4 +15,4 @@ config:
     - name: to-root
       action: safe  # Can be safe or remove-base (see docs)
   scp:
-    keep-default-scp: enabled  # determines if the default AWSFullAccess SCP stays attached to all OU's 
+    keep-default-scp: enabled  # determines if the default AWSFullAccess SCP stays attached to all OU's
