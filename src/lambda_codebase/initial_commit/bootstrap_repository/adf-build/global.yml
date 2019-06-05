@@ -81,6 +81,6 @@ Resources:
               - ssm:PutParameter
               - ssm:GetParameters 
               - ssm:GetParameter 
-            Resource: !Sub "*"
+            Resource: "*"
       Roles:
         - !Ref OrganizationsRole
