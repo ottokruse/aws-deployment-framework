@@ -1,19 +1,50 @@
 # // Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # // SPDX-License-Identifier: Apache-2.0
 
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Description: ADF CloudFormation Template - Role to be assumed by CodePipeline in Deployment Account
 Parameters:
   DeploymentAccountId:
-    Type : 'AWS::SSM::Parameter::Value<String>'
+    Type: "AWS::SSM::Parameter::Value<String>"
     Description: Deployment Account ID
     Default: deployment_account_id
   CrossAccountAccessRole:
-    Type : 'AWS::SSM::Parameter::Value<String>'
+    Type: "AWS::SSM::Parameter::Value<String>"
     Description: The role used to allow cross account access
     Default: cross_account_access_role
 Resources:
-  OrganizationsRole:
+  AccessOrganizationsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${CrossAccountAccessRole}-readonly"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS:
+                - !Sub "arn:aws:iam::${AWS::AccountId}:role/adf-codebuild-role"
+            Action:
+              - sts:AssumeRole
+      Path: /
+  AccessOrganizationsPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: "adf-organizations-access-role-policy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - organizations:ListAccounts
+              - organizations:ListAccountsForParent
+              - organizations:DescribeAccount
+              - organizations:ListOrganizationalUnitsForParent
+              - organizations:ListRoots
+            Resource: "*"
+      Roles:
+        - !Ref AccessOrganizationsRole
+  MasterAccountBootstrapRole:
     Type: AWS::IAM::Role
     Properties:
       RoleName: !Ref CrossAccountAccessRole
@@ -23,28 +54,19 @@ Resources:
           - Effect: Allow
             Principal:
               AWS:
-                - !Ref DeploymentAccountId
                 - !Ref AWS::AccountId
             Action:
               - sts:AssumeRole
       Path: /
-  OrganizationsPolicy:
+  MasterAccountBootstrapPolicy:
     Type: AWS::IAM::Policy
     Properties:
-      PolicyName: "adf-organizations-access-role-policy"
+      PolicyName: "adf-master-account-bootstrap-policy"
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Action:
-              - ssm:PutParameter
-              - ssm:GetParameters 
-              - ssm:GetParameter 
-              - organizations:ListAccounts
-              - organizations:ListAccountsForParent
-              - organizations:DescribeAccount
-              - organizations:ListOrganizationalUnitsForParent
-              - organizations:ListRoots
               - iam:CreateRole
               - iam:CreatePolicy
               - iam:UpdateAssumeRolePolicy
@@ -54,5 +76,11 @@ Resources:
               - iam:DeleteRolePolicy
               - cloudformation:*
             Resource: "*"
+          - Effect: Allow
+            Action:
+              - ssm:PutParameter
+              - ssm:GetParameters 
+              - ssm:GetParameter 
+            Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*"
       Roles:
-        - !Ref OrganizationsRole
+        - !Ref MasterAccountBootstrapRole

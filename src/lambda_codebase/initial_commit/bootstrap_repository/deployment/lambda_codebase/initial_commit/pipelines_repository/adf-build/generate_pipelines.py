@@ -94,7 +94,7 @@ def main(): #pylint: disable=R0915
     )
     sts = STS()
     role = sts.assume_cross_account_role(
-        'arn:aws:iam::{0}:role/{1}'.format(
+        'arn:aws:iam::{0}:role/{1}-readonly'.format(
             MASTER_ACCOUNT_ID,
             parameter_store.fetch_parameter('cross_account_access_role')
         ), 'pipeline'
