@@ -13,7 +13,7 @@ Parameters:
     Description: The role used to allow cross account access
     Default: cross_account_access_role
 Resources:
-  AccessOrganizationsRole:
+  OrganizationsReadOnlyRole:
     Type: AWS::IAM::Role
     Properties:
       RoleName: !Sub "${CrossAccountAccessRole}-readonly"
@@ -27,10 +27,10 @@ Resources:
             Action:
               - sts:AssumeRole
       Path: /
-  AccessOrganizationsPolicy:
+  OrganizationsReadOnlyPolicy:
     Type: AWS::IAM::Policy
     Properties:
-      PolicyName: "adf-organizations-access-role-policy"
+      PolicyName: "adf-organizations-readonly-policy"
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -43,8 +43,8 @@ Resources:
               - organizations:ListRoots
             Resource: "*"
       Roles:
-        - !Ref AccessOrganizationsRole
-  MasterAccountBootstrapRole:
+        - !Ref OrganizationsReadOnlyRole
+  OrganizationsRole:
     Type: AWS::IAM::Role
     Properties:
       RoleName: !Ref CrossAccountAccessRole
@@ -58,7 +58,7 @@ Resources:
             Action:
               - sts:AssumeRole
       Path: /
-  MasterAccountBootstrapPolicy:
+  OrganizationsPolicy:
     Type: AWS::IAM::Policy
     Properties:
       PolicyName: "adf-master-account-bootstrap-policy"
@@ -81,6 +81,6 @@ Resources:
               - ssm:PutParameter
               - ssm:GetParameters 
               - ssm:GetParameter 
-            Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*"
+            Resource: !Sub "*"
       Roles:
-        - !Ref MasterAccountBootstrapRole
+        - !Ref OrganizationsRole
