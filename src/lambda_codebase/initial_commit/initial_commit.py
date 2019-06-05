@@ -114,6 +114,7 @@ def create_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId
     create_event = CreateEvent(**event)
     repo_name = repo_arn_to_name(create_event.ResourceProperties.RepositoryArn)
     directory = create_event.ResourceProperties.DirectoryName
+    files_to_commit = get_files_to_commit(directory)
     try:
         commit_id = CC_CLIENT.get_branch(
             repositoryName=repo_name,
@@ -134,7 +135,7 @@ def create_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId
             putFiles=[f.as_dict() for f in files_to_commit]
         )
         CC_CLIENT.create_pull_request(
-            title='ADF {0} Automated Update PR'.format(update_event.ResourceProperties.Version),
+            title='ADF {0} Automated Update PR'.format(create_event.ResourceProperties.Version),
             description='ADF Version {0} from https://github.com/awslabs/aws-deployment-framework'.format(create_event.ResourceProperties.Version),
             targets=[
                 {
@@ -148,7 +149,7 @@ def create_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId
     except (CC_CLIENT.exceptions.FileEntryRequiredException, CC_CLIENT.exceptions.NoChangeException):
         CC_CLIENT.delete_branch(
             repositoryName=repo_name,
-            branchName=update_event.ResourceProperties.Version
+            branchName=create_event.ResourceProperties.Version
         )
     except CC_CLIENT.exceptions.BranchDoesNotExistException:
         files_to_commit = get_files_to_commit(directory)
