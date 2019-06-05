@@ -8,6 +8,9 @@ Parameters:
   ADFVersion:
     Type : 'AWS::SSM::Parameter::Value<String>'
     Default: adf_version
+  ADFLogLevel:
+    Type : 'AWS::SSM::Parameter::Value<String>'
+    Default: adf_log_level
   MasterAccountId:
     Type : 'AWS::SSM::Parameter::Value<String>'
     Default: master_account_id
@@ -112,6 +115,7 @@ Resources:
       TargetKeyId: !Ref KMSKey
   PipelineBucket:
     Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
     Properties:
       AccessControl: BucketOwnerFullControl
       VersioningConfiguration:
@@ -406,6 +410,8 @@ Resources:
             Value: !Ref SharedModulesBucket
           - Name: ADF_PIPELINE_PREFIX
             Value: !Ref PipelinePrefix
+          - Name: ADF_LOG_LEVEL
+            Value: !Ref ADFLogLevel
         Type: LINUX_CONTAINER
       Name: 'aws-deployment-framework-base'
       Source:
@@ -667,6 +673,7 @@ Resources:
       Environment:
         Variables:
           ADF_PIPELINE_PREFIX: !Ref PipelinePrefix
+          ADF_LOG_LEVEL: !Ref ADFLogLevel
       Runtime: python3.7
       Timeout: 10
   EnableCrossAccountAccess:
@@ -681,6 +688,7 @@ Resources:
         Variables:
           KMS_KEY_ID: !Ref KMSKey
           S3_BUCKET_NAME: !Ref PipelineBucket
+          ADF_LOG_LEVEL: !Ref ADFLogLevel
       FunctionName: UpdateCrossAccountIAM
       Handler: enable_cross_account_access.lambda_handler
       Role: !GetAtt LambdaRole.Arn
@@ -697,6 +705,7 @@ Resources:
         Variables:
           KMS_KEY_ID: !Ref KMSKey
           S3_BUCKET_NAME: !Ref PipelineBucket
+          ADF_LOG_LEVEL: !Ref ADFLogLevel
       FunctionName: CheckPipelineStatus
       Handler: update_pipelines.lambda_handler
       Role: !GetAtt LambdaRole.Arn
