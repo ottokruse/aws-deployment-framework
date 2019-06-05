@@ -75,13 +75,3 @@ def test_update_deployment_account_output_parameters(cls, sts):
         )
         assert 4 == mock.call_count
         mock.assert_has_calls(expected_calls, any_order=True)
-
-
-# def test_prepare_deployment_account(cls, sts):
-#     pass
-
-# def test_worker_thread(cls):
-#     pass
-
-# def test_main(cls):
-#     pass

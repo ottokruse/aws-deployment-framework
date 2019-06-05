@@ -291,7 +291,12 @@ def main():
 
         step_functions.execute_statemachine()
     except ParameterNotFoundError:
-        LOGGER.info("You are now ready to bootstrap a deployment account by moving it into your deployment OU.")
+        LOGGER.info(
+            'You are now ready to bootstrap a deployment account '
+            'by moving it into your deployment OU. '
+            'Once you have moved it into the deployment OU, '
+            'be sure to check out its progress in AWS Step Functions'
+        )
         return
 
 

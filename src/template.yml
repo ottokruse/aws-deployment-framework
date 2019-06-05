@@ -1,5 +1,5 @@
-# // Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# // SPDX-License-Identifier: Apache-2.0
+# Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: 'AWS::Serverless-2016-10-31'
@@ -12,14 +12,14 @@ Metadata:
     SpdxLicenseId: Apache-2.0
     LicenseUrl: ../LICENSE.txt
     ReadmeUrl: ../README.md
-    Labels: ['adf', 'aws-deployment-framework']
+    Labels: ['adf', 'aws-deployment-framework', 'multi-account', 'cicd', 'devops']
     HomePageUrl: https://github.com/awslabs/aws-deployment-framework
-    SemanticVersion: 1.0.81
+    SemanticVersion: 1.0.87
     SourceCodeUrl: https://github.com/awslabs/aws-deployment-framework
 Parameters:
   CommitInitialBootstrapContent:
     Type: String
-    Description: "If you want AWS CloudFormation to automatically make the initial commit into the Bootstrap AWS CodeCommit Repository for on your behalf, the commit will only be made if the master branch does not yet exist - Recommended for new deployments, can be left as True while updating"
+    Description: "If you want AWS CloudFormation to automatically make the initial commit into the Bootstrap AWS CodeCommit Repository for on your behalf, the commit will only be made if the master branch does not yet exist - can be left as true while updating"
     Default: true
     AllowedValues: [true, false]
   CrossAccountAccessRoleName:
@@ -27,42 +27,34 @@ Parameters:
     Type: String
     Default: OrganizationAccountAccessRole
   MainNotificationEndpoint:
-    Description: "The Email Address (Or Slack Channel, see docs) that will receive notifications in regards to the bootstrapping pipeline on the master account. Required only for initial setup, Can be left as blank while updating"
+    Description: "The Email Address/Slack Channel (see docs) that will receive notifications in regards to the bootstrapping pipeline on the master account, not required for updating."
     Type: String
     Default: ""
   DeploymentAccountName:
-    Description: "The Name of the centralized Deployment Account - only required if Deployment Account requires creation. Can be left as blank while updating"
+    Description: "The Name of the centralized Deployment Account - only required if Deployment Account requires creation, not required for updating."
     Type: String
     Default: ""
   DeploymentAccountEmailAddress:
-    Description: "The Email address associated with the Deployment Account, only required if Deployment Account requires creation. Can be left as blank while updating"
+    Description: "The Email address associated with the Deployment Account, only required if Deployment Account requires creation, not required for updating."
     Type: String
     Default: ""
   DeploymentAccountId:
-    Description: "The account number of the existing Deployment Account, only required if an existing account should be re-used. A deployment account will be created if this value is omitted. Required when updating ADF."
+    Description: "The account number of the existing Deployment Account, only required if an existing account should be re-used. A deployment account will be created if this value is omitted. Only required if using pre-existing AWS Account as Deployment Account, not required for updating."
     Type: String
     Default: ""
   DeploymentAccountMainRegion:
-    Description: "The region that will centrally hold all CodePipeline deployments. This would be considered your default ADF AWS Region"
+    Description: "The region that will centrally hold all CodePipeline deployments. This would be considered your default ADF AWS Region, not required for updating."
     Type: String
     Default: ""
   DeploymentAccountTargetRegions:
-    Description: "A List of regions that you may want to deploy resources (Applications, CloudFormation etc) into via CodePipeline (This can always be updated later - Required only for initial setup - eg us-west-1,eu-west-1)"
+    Description: "A List of regions that you may want to deploy resources (Applications, CloudFormation etc) into via CodePipeline (us-west-1,eu-west-1) This can always be updated later, not required for updating."
     Type: CommaDelimitedList
     Default: ""
   TerminationProtection:
     Type: String
-    Description: "Termination Protection can be passed in to enable Protection for all ADF deployed stacks"
+    Description: "Termination Protection can be passed in to enable Protection for all ADF base stacks"
     Default: false
     AllowedValues: [true, false]
-  ComputeType:
-    Description: The Compute Type to use for AWS CodeBuild for the bootstrap pipeline.
-    Type: String
-    Default: "BUILD_GENERAL1_SMALL"
-    AllowedValues:
-      - "BUILD_GENERAL1_SMALL"  #3 GB memory, 2 vCPU
-      - "BUILD_GENERAL1_MEDIUM" #7 GB memory, 4 vCPU
-      - "BUILD_GENERAL1_LARGE"  #15 GB memory, 8 vCPU
 Conditions:
   ShouldCommitInitialBootstrapContent: !Equals [true, !Ref CommitInitialBootstrapContent]
 Resources:
@@ -203,7 +195,7 @@ Resources:
           DEPLOYMENT_ACCOUNT_BUCKET: !GetAtt SharedModulesBucketName.Value
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
           ORGANIZATION_ID: !GetAtt Organization.OrganizationId
-          ADF_VERSION: 1.0.75
+          ADF_VERSION: 1.0.87
       FunctionName: DetermineEventFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.7
@@ -223,7 +215,7 @@ Resources:
           DEPLOYMENT_ACCOUNT_BUCKET: !GetAtt SharedModulesBucketName.Value
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
           ORGANIZATION_ID: !GetAtt Organization.OrganizationId
-          ADF_VERSION: 1.0.75
+          ADF_VERSION: 1.0.87
       FunctionName: CrossAccountExecuteFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.7
@@ -258,7 +250,7 @@ Resources:
           S3_BUCKET_NAME: !Ref BootstrapTemplatesBucket
           TERMINATION_PROTECTION: !Ref TerminationProtection
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ADF_VERSION: 1.0.75
+          ADF_VERSION: 1.0.87
       FunctionName: MovedToRootActionFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.7
@@ -276,7 +268,7 @@ Resources:
           S3_BUCKET_NAME: !Ref BootstrapTemplatesBucket
           TERMINATION_PROTECTION: !Ref TerminationProtection
           MASTER_ACCOUNT_ID: !Ref AWS::AccountId
-          ADF_VERSION: 1.0.75
+          ADF_VERSION: 1.0.87
       FunctionName: UpdateResourcePoliciesFunction
       Role: !GetAtt LambdaRole.Arn
       Runtime: python3.7
@@ -409,12 +401,12 @@ Resources:
       Artifacts:
         Type: CODEPIPELINE
       Environment:
-        ComputeType: !Ref ComputeType
+        ComputeType: "BUILD_GENERAL1_SMALL"
         PrivilegedMode: true
         Image: "aws/codebuild/standard:2.0"
         EnvironmentVariables:
           - Name: ADF_VERSION
-            Value: 1.0.75
+            Value: 1.0.87
           - Name: TERMINATION_PROTECTION
             Value: !Ref TerminationProtection
           - Name: PYTHONPATH
@@ -652,7 +644,7 @@ Resources:
     Condition: ShouldCommitInitialBootstrapContent
     Properties:
       ServiceToken: !GetAtt InitialCommitHandler.Arn
-      Version: 1.0.75
+      Version: 1.0.87
       RepositoryArn: !GetAtt CodeCommitRepository.Arn
       DirectoryName: bootstrap_repository
       DeploymentAccountRegion: !Ref DeploymentAccountMainRegion
@@ -817,7 +809,7 @@ Resources:
       Timeout: 300
 Outputs:
   ADFVersionNumber:
-    Value: 1.0.75
+    Value: 1.0.87
     Export:
       Name: "ADFVersionNumber"
   LayerArn:

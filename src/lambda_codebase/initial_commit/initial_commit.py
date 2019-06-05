@@ -114,12 +114,43 @@ def create_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId
     create_event = CreateEvent(**event)
     repo_name = repo_arn_to_name(create_event.ResourceProperties.RepositoryArn)
     directory = create_event.ResourceProperties.DirectoryName
+    files_to_commit = get_files_to_commit(directory)
     try:
-        CC_CLIENT.get_branch(
+        commit_id = CC_CLIENT.get_branch(
             repositoryName=repo_name,
             branchName="master",
+        )["branch"]["commitId"]
+        CC_CLIENT.create_branch(
+            repositoryName=repo_name,
+            branchName=create_event.ResourceProperties.Version,
+            commitId=commit_id
+        )
+        CC_CLIENT.create_commit(
+            repositoryName=repo_name,
+            branchName=create_event.ResourceProperties.Version,
+            parentCommitId=commit_id,
+            authorName='ADF Update PR',
+            email='adf-builders@amazon.com',
+            commitMessage='ADF {0} Automated Update PR'.format(create_event.ResourceProperties.Version),
+            putFiles=[f.as_dict() for f in files_to_commit]
+        )
+        CC_CLIENT.create_pull_request(
+            title='ADF {0} Automated Update PR'.format(create_event.ResourceProperties.Version),
+            description='ADF Version {0} from https://github.com/awslabs/aws-deployment-framework'.format(create_event.ResourceProperties.Version),
+            targets=[
+                {
+                    'repositoryName': repo_name,
+                    'sourceReference': create_event.ResourceProperties.Version,
+                    'destinationReference': 'master'
+                },
+            ]
         )
         return event.get("PhysicalResourceId"), {}
+    except (CC_CLIENT.exceptions.FileEntryRequiredException, CC_CLIENT.exceptions.NoChangeException):
+        CC_CLIENT.delete_branch(
+            repositoryName=repo_name,
+            branchName=create_event.ResourceProperties.Version
+        )
     except CC_CLIENT.exceptions.BranchDoesNotExistException:
         files_to_commit = get_files_to_commit(directory)
         if directory == "bootstrap_repository":
@@ -201,7 +232,7 @@ def get_files_to_delete(repo_name: str) -> List[FileToDelete]:
         for file in differences
         if 'adfconfig.yml' not in file['afterBlob']['path']
         and 'scp.json' not in file['afterBlob']['path']
-        #and 'global.yml' not in file['afterBlob']['path']
+        and 'global.yml' not in file['afterBlob']['path']
         and 'regional.yml' not in file['afterBlob']['path']
         and 'deployment_map.yml' not in file['afterBlob']['path']
         and '.DS_Store' not in file['afterBlob']['path']

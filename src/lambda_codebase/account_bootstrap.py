@@ -12,6 +12,7 @@ import os
 import boto3
 
 from logger import configure_logger
+from errors import GenericAccountConfigureError, ParameterNotFoundError
 from parameter_store import ParameterStore
 from cloudformation import CloudFormation
 from s3 import S3
@@ -30,21 +31,28 @@ def configure_generic_account(sts, event, region, role):
     target account so it can be consumed in CloudFormation. These
     are required for the global.yml in all target accounts.
     """
-    deployment_account_role = sts.assume_cross_account_role(
-        'arn:aws:iam::{0}:role/{1}'.format(
-            event['deployment_account_id'],
-            event['cross_account_access_role']
-        ), 'configure_generic'
-    )
-    parameter_store_deployment_account = ParameterStore(
-        event['deployment_account_region'],
-        deployment_account_role
-    )
-    parameter_store_target_account = ParameterStore(
-        region,
-        role
-    )
-    kms_arn = parameter_store_deployment_account.fetch_parameter('/cross_region/kms_arn/{0}'.format(region))
+    try:
+        deployment_account_role = sts.assume_cross_account_role(
+            'arn:aws:iam::{0}:role/{1}'.format(
+                event['deployment_account_id'],
+                event['cross_account_access_role']
+            ), 'configure_generic'
+        )
+        parameter_store_deployment_account = ParameterStore(
+            event['deployment_account_region'],
+            deployment_account_role
+        )
+        parameter_store_target_account = ParameterStore(
+            region,
+            role
+        )
+        kms_arn = parameter_store_deployment_account.fetch_parameter('/cross_region/kms_arn/{0}'.format(region))
+    except (ClientError, ParameterNotFoundError):
+        raise GenericAccountConfigureError(
+            'Account {0} cannot yet be bootstrapped '
+            'as the Deployment Account has not yet been bootstrapped. '
+            'Have you moved your Deployment account into the deployment OU?'.format(event['account_id'])
+        )
     parameter_store_target_account.put_parameter('kms_arn', kms_arn)
     parameter_store_target_account.put_parameter('deployment_account_id', event['deployment_account_id'])
 
