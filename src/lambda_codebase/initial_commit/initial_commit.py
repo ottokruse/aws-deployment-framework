@@ -24,7 +24,14 @@ HERE = Path(__file__).parent
 NOT_YET_CREATED = "NOT_YET_CREATED"
 CC_CLIENT = boto3.client("codecommit")
 
+PR_DESCRIPTION = """ADF Version {0} from https://github.com/awslabs/aws-deployment-framework
 
+This PR was automatically created when you deployed version {0} of the AWS Deployment Framework through the Serverless Application Repository.
+
+Review this PR to understand what changes will be made to your bootstrapping repository. If you also made changes to the repository yourself, you might have to resolve merge conflicts before you can merge this PR.
+
+Merge this PR to complete the deployment of the version {0} of the AWS Deployment Framework.
+"""
 @dataclass
 class CustomResourceProperties:
     ServiceToken: str
@@ -110,7 +117,7 @@ class UpdateEvent(Event):
         )
 
 @create()
-def create_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId, Data]:
+def create_(event: Mapping[str, Any], _context: Any) -> Tuple[Union[None, PhysicalResourceId], Data]:
     create_event = CreateEvent(**event)
     repo_name = repo_arn_to_name(create_event.ResourceProperties.RepositoryArn)
     directory = create_event.ResourceProperties.DirectoryName
@@ -136,7 +143,7 @@ def create_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId
         )
         CC_CLIENT.create_pull_request(
             title='ADF {0} Automated Update PR'.format(create_event.ResourceProperties.Version),
-            description='ADF Version {0} from https://github.com/awslabs/aws-deployment-framework'.format(create_event.ResourceProperties.Version),
+            description=PR_DESCRIPTION.format(create_event.ResourceProperties.Version),
             targets=[
                 {
                     'repositoryName': repo_name,
@@ -151,6 +158,7 @@ def create_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId
             repositoryName=repo_name,
             branchName=create_event.ResourceProperties.Version
         )
+        return event.get("PhysicalResourceId"), {}
     except CC_CLIENT.exceptions.BranchDoesNotExistException:
         files_to_commit = get_files_to_commit(directory)
         if directory == "bootstrap_repository":
@@ -196,7 +204,7 @@ def update_(event: Mapping[str, Any], _context: Any) -> Tuple[PhysicalResourceId
         )
         CC_CLIENT.create_pull_request(
             title='ADF {0} Automated Update PR'.format(update_event.ResourceProperties.Version),
-            description='ADF Version {0} from https://github.com/awslabs/aws-deployment-framework'.format(update_event.ResourceProperties.Version),
+            description=PR_DESCRIPTION.format(update_event.ResourceProperties.Version),
             targets=[
                 {
                     'repositoryName': repo_name,
